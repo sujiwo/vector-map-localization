@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<package>
+  <name>signal_pub_node</name>
+  <version>0.1.0</version>
+  <description>Publisher of Signal Lamps from Vector Map</description>
+  <maintainer email="sujiwo@todo.todo">sujiwo</maintainer>
+  <license>TODO</license>
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>libvectormap</build_depend>
+  <build_depend>message_generation</build_depend>
+  <run_depend>libvectormap</run_depend>
+  <run_depend>message_runtime</run_depend>
+  <export></export>
+</package>
