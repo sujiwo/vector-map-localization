@@ -11,6 +11,12 @@
 #include <iostream>
 #include <fstream>
 #include "RenderWidget.h"
+#include "debug.h"
+
+
+using boost::posix_time::ptime;
+using boost::posix_time::time_duration;
+using boost::posix_time::microsec_clock;
 
 
 typedef Eigen::MatrixXf Matrixf;
@@ -160,12 +166,14 @@ double ImageMatch::entropy (const cv::Mat &image1, const cv::Mat &image2, bool d
 }
 
 
+
 double ImageMatch::nmi (const cv::Mat &image1, const cv::Mat &image2)
 {
 	double Himage1 = ImageMatch::entropy(image1),
 		Himage2 = ImageMatch::entropy(image2),
 		Hjoint = ImageMatch::entropy (image1, image2);
 	double NMI = (Himage1 + Himage2) / Hjoint;
+
 	return NMI;
 }
 
@@ -187,6 +195,8 @@ Point3 imageSearch (const cv::Mat &cameraRefGray, RenderWidget *widget, const cv
 
 		for (int c=0; c<GridSize; c++) {
 
+			ptime t1 = mclock::local_time();
+
 			widget->draw(true);
 			QImage synthImg = widget->getFramebuffer()->toImage();
 			cv::Mat synthImg2 = RenderWidget::convert2Cv(&synthImg);
@@ -199,6 +209,10 @@ Point3 imageSearch (const cv::Mat &cameraRefGray, RenderWidget *widget, const cv
 
 			heatmap(r,c) = (float)ImageMatch::nmi (synthGray, cameraRefGray);
 			offPos.x() += dpos;
+
+			ptime t2 = mclock::local_time();
+			timelen tlen = t2 - t1;
+			std::cout << "Duration: " << tlen << std::endl;
 		}
 
 		offPos.z() -= dpos;

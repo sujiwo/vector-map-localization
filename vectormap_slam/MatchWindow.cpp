@@ -211,14 +211,14 @@ void MatchWindow::captureClicked()
 void MatchWindow::searchButtonClicked ()
 {
 	cv::Mat *mask = &imageDisplay->getMask();
-//	Point3 pt = imageSearch (imageDisplay->getProcessedGray(), glcanvas, mask);
-//	std::cout << pt << std::endl;
-//	glcanvas->pose()->offset(pt);
+	Point3 pt = imageSearch (imageDisplay->getProcessedGray(), glcanvas, mask);
+	std::cout << pt << std::endl;
+	glcanvas->pose()->offset(pt);
 
-	cv::Mat &imgProcGray = imageDisplay->getProcessedGray();
-	ImageMatch search (imgProcGray, glcanvas, mask);
-	Point3 transOff = search.find();
-	glcanvas->pose()->offset (transOff);
+//	cv::Mat &imgProcGray = imageDisplay->getProcessedGray();
+//	ImageMatch search (imgProcGray, glcanvas, mask);
+//	Point3 transOff = search.find();
+//	glcanvas->pose()->offset (transOff);
 
 	glcanvas->draw(true);
 	imageDisplay->repaint();
@@ -296,8 +296,10 @@ LabelWithTextBox::LabelWithTextBox (const string &textlabel, QWidget *parent) :
 	textEntry->setReadOnly(true);
 
 	layout()->addWidget(plus = new QPushButton ("+"));
+	plus->setFixedWidth(50);
 	QObject::connect (this->plus, SIGNAL(clicked()), this, SLOT(plusClick()));
 	layout()->addWidget(minus = new QPushButton ("-"));
+	minus->setFixedWidth(50);
 	QObject::connect (this->minus, SIGNAL(clicked()), this, SLOT(minusClick()));
 }
 

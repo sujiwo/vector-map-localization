@@ -11,6 +11,8 @@
 #include <cstdarg>
 #include <iostream>
 #include <cstdio>
+#include <boost/date_time/posix_time/posix_time.hpp>
+
 
 #ifdef GLDEBUG
 #include <GL/gl.h>
@@ -43,6 +45,19 @@ inline void _getGlError ()
 	cmd; \
 	_getGlError ();
 #endif
+
+
+typedef boost::posix_time::microsec_clock mclock;
+typedef boost::posix_time::time_duration timelen;
+using boost::posix_time::ptime;
+
+// Timing routines
+#define printTime(cmd) \
+	boost::posix_time::ptime __t1, __t2; \
+	__t1 = mclock::local_time (); \
+	cmd; \
+	__t2 = mclock::local_time ();
+
 
 
 #endif /* DEBUG_H_ */

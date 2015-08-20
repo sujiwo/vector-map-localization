@@ -101,7 +101,7 @@ ImageDisplay::ImageDisplay(QSize imgsize, RenderWidget *canvas, QWidget *parent)
 	qProcessedGrayImage->setColorTable (clrTable);
 	qMask->setColorTable (clrTable);
 
-	glcanvas->setStencil (&mask);
+//	glcanvas->setStencil (&mask);
 }
 
 
