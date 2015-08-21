@@ -75,6 +75,7 @@ add_executable (
 		Camera.cpp
 		vector_map.cpp
 		LineList.cpp
+		LinesRaw.cpp
 		TrafficLights.cpp
 		PolesDraw.cpp
 		ImageMatch.cpp

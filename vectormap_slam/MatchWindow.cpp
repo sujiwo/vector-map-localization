@@ -318,7 +318,8 @@ void LabelWithTextBox::minusClick()
 
 /* For testing purposes */
 #include "DrawObjects.h"
-#include "LineList.h"
+//#include "LineList.h"
+#include "LinesRaw.h"
 #include "TrafficLights.h"
 #include "PolesDraw.h"
 #include "DirectionArrow.h"
@@ -364,9 +365,11 @@ void insertObjects (RenderWidget *w)
 //	map->filterDistance = false;
 
 	// XXX: need to tune scale
-	const double scale = 0.05;
-	LineList *lineList = new LineList (mapsrc, scale, w);
-	w->addObject(lineList);
+//	const double scale = 0.05;
+//	LineList *lineList = new LineList (mapsrc, scale, w);
+//	w->addObject(lineList);
+	LinesRaw *lnsz = new LinesRaw (mapsrc, w);
+	w->addObject(lnsz);
 
 	TrafficLights *trafficLights = new TrafficLights (mapsrc, w);
 	w->addObject(trafficLights);

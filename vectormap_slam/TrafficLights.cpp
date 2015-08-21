@@ -91,7 +91,8 @@ void TrafficLights::draw()
 			setColor(255, 255, 0); break;
 		}
 		glwidget->getShader()->setUniformValue("objColor", color2qv(color));
-		glDrawElements (GL_TRIANGLE_FAN, signal.idx.size(), GL_UNSIGNED_INT, signal.idx.data());
+		glDrawElements (GL_LINES, signal.idx.size(), GL_UNSIGNED_INT, signal.idx.data());
+//		glDrawElements (GL_TRIANGLE_FAN, signal.idx.size(), GL_UNSIGNED_INT, signal.idx.data());
 	}
 
 	glDisableClientState (GL_VERTEX_ARRAY);
