@@ -49,6 +49,8 @@ void Camera::lookAt (const Point3 &eyePos, const Point3 &centerOfView, const Vec
 	viewMatrix (0, 3) = -eyePos.x();
 	viewMatrix (1, 3) = -eyePos.y();
 	viewMatrix (2, 3) = -eyePos.z();
+
+	std::cout << viewMatrix << std::endl;
 }
 
 

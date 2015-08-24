@@ -31,10 +31,10 @@ int main (int argc, char **argv)
 	signal (SIGINT, interrupt);
 
 	PointListDrawObject::Ptr pList (new PointListDrawObject);
-	pList->add (Point3 (0, 0, 0));
-	pList->add (Point3 (1, 0, 0));
-	pList->add (Point3 (1, 10, 0));
-	pList->add (Point3 (0, 10, 0));
+	pList->add (Point3 (0, 0, -2));
+	pList->add (Point3 (1, 0, -2));
+	pList->add (Point3 (1, 1, -2));
+	pList->add (Point3 (0, 1, -2));
 	pList->setColor(255, 255, 0);
 	pList->setSize(6.0);
 
@@ -44,9 +44,9 @@ int main (int argc, char **argv)
 	scene.addObject (pList);
 
 	scene.getCamera()->lookAt (
-		Point3(0.5, -1, 0.5),
-		Point3(0.5, 1, 0.5),
-		Vector3(0, 0, 1));
+		Point3(-0.5, -0.5, 2),
+		Point3(0.5, 0.5, -2),
+		Vector3(0, 1, 0));
 	scene.getCamera()->perspective (45.0,
 		(float)WIDTH / (float)HEIGHT,
 		1.0, 100);

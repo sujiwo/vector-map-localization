@@ -33,13 +33,18 @@ def DetectFeaturesFromLines (imagesrc):
 
 
 def DetectLines (imagesrc):
-    global detector
     
     imageproc = cv2.GaussianBlur(imagesrc, (11,11), 0)
     edges = cv2.Canny(imageproc, 1, 50)
-    keypoints, descriptors = detector.detectAndCompute (edges, None)
+    
+    lines = cv2.HoughLinesP(edges, 100, np.pi/180.0, 300, 100)
     imageproc = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
-    imageproc = cv2.drawKeypoints(imageproc, keypoints, flags=2, color=[0, 255, 0])
+    print ("# of lines: {}".format(len(lines[0])))
+
+    for l in lines[0]:
+        cv2.line (imageproc, (l[0],l[1]), (l[2],l[3]), (0,0,255), 2)
+        pass
+    
     return imageproc
     
 
