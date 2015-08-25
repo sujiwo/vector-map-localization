@@ -8,6 +8,9 @@
 #include "Camera.h"
 
 
+#define NEAR_PLANE 1.0
+#define FAR_PLANE 40.0
+
 
 Camera::Camera (int w, int h) :
 	imageWidth(w), imageHeight(h)
@@ -124,7 +127,7 @@ void Camera::projectionMatrixFromCameraInfo (float fx, float fy, int w, int h, f
 
 	projectionMatrix = Eigen::Matrix4f::Zero();
 
-	double far_plane = 100, near_plane = 0.01;
+	double far_plane = FAR_PLANE, near_plane = NEAR_PLANE;
 //	double zoom_x = (float)imageWidth / (float)w,
 //			zoom_y = (float)imageHeight / (float)h;
 	double zoom_x = 1.0, zoom_y = 1.0;

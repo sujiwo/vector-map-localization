@@ -34,14 +34,6 @@ def lookAt (eyePos, centerOfView, upVect):
     return viewMat
 
 def perspective1 (fovy, aspectRatio, zNear, zFar):
-#     projectionMatrix = Matrix4::Zero();
-#     double angle = degreeToRadian(fovy/2);
-#     double f = 1 / (tan(angle));
-#     projectionMatrix (0, 0) = f/aspectRatio;
-#     projectionMatrix (1, 1) = f;
-#     projectionMatrix (2, 2) = (zFar + zNear) / (zNear - zFar);
-#     projectionMatrix (3, 2) = -1;
-#     projectionMatrix (2, 3) = 2 * zFar * zNear / (zNear - zFar);
     projMat = np.eye (4)
     angle = degreeToRadian(fovy/2.0)
     f = 1 / math.tan (angle)
@@ -80,9 +72,10 @@ if __name__ == '__main__' :
     projMat = np.eye(3)
     
     image = np.zeros ((height,width), dtype=np.uint8)
-    rv, jac1 = cv2.Rodrigues(viewMat[0:3, 0:3])
+#     rv, jac1 = cv2.Rodrigues(viewMat[0:3, 0:3])
+    rv, jac1 = cv2.Rodrigues(np.eye(3))
 #     imgpts, jac2 = cv2.projectPoints(points, rv, viewMat[0:3, 3], projMat[0:3,0:3], 0)
-    imgpts, jac2 = cv2.projectPoints (points, (0,0,0), (0,0,0), np.eye(3), 0)
+    imgpts, jac2 = cv2.projectPoints (points, rv, (0,0,0), np.eye(3), 0)
     plotPoints (image, imgpts)
     
     cv2.startWindowThread()
