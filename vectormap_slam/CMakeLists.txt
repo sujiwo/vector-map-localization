@@ -85,6 +85,7 @@ add_executable (
 		AreaList.cpp
 		Tesselator.cpp
 #		Gutters.cpp
+		PointSolver.cpp
 )
 
 target_link_libraries(

@@ -2,25 +2,40 @@
 /* [ Created with wxMaxima version 13.04.2 ] */
 
 /* [wxMaxima: input   start ] */
-eu(px, p1x, p1y, p2x, p2y) := px - p1x + (p1x - p2x) * ( ([px-p1x, py-p1y] . [p2x-p1x, p2y-p1y]) / ((p2x-p1x)^2 + (p2y-p1y)^2) );
+P1: [p1x, p1y];
 /* [wxMaxima: input   end   ] */
 
 /* [wxMaxima: input   start ] */
-diff (eu(px, p1x, p1y, p2x, p2y), p1x);
+P2: [p2x, p2y];
 /* [wxMaxima: input   end   ] */
 
 /* [wxMaxima: input   start ] */
-diff (eu(px, p1x, p1y, p2x, p2y), p1y);
+P: [px, py];
 /* [wxMaxima: input   end   ] */
 
 /* [wxMaxima: input   start ] */
-diff (eu(px, p1x, p1y, p2x, p2y), p2x);
+Q: P1 + (P2-P1)*((P-P1) . (P2-P1))/((P2-P1).(P2-P1));
 /* [wxMaxima: input   end   ] */
 
 /* [wxMaxima: input   start ] */
-diff (eu(px, p1x, p1y, p2x, p2y), p2y);
+e(P1, P2) := (P-Q) . (P-Q);
 /* [wxMaxima: input   end   ] */
 
+/* [wxMaxima: input   start ] */
+diff (e(P1, P2), p1x);
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+diff (e(P1, P2), p1y);
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+diff (e(P1, P2), p2x);
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+diff (e(P1, P2), p2y);
+/* [wxMaxima: input   end   ] */
 
 /* Maxima can't load/batch files which end with a comment! */
 "Created with wxMaxima"$
