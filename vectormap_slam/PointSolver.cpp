@@ -16,13 +16,13 @@ PointSolver::PointSolver (VectorMap *src, RenderWidget *gl) :
 {
 	// re-create camera parameters
 	// There may be differences with calculated camera matrix in Camera.cpp
-	Camera::CameraIntrinsic &cameraParams = glcanvas->getCamera()->getCameraParam();
-	camera = cv::Mat::zeros(0, 0, CV_32F);
-	camera.at<float>(0, 0) = cameraParams.fx;
-	camera.at<float>(0, 2) = cameraParams.cx;
-	camera.at<float>(1, 1) = cameraParams.fy;
-	camera.at<float>(1, 2) = cameraParams.cy;
-	camera.at<float>(2, 2) = 1;
+//	Camera::CameraIntrinsic &cameraParams = glcanvas->getCamera()->getCameraParam();
+//	camera = cv::Mat::zeros(0, 0, CV_32F);
+//	camera.at<float>(0, 0) = cameraParams.fx;
+//	camera.at<float>(0, 2) = cameraParams.cx;
+//	camera.at<float>(1, 1) = cameraParams.fy;
+//	camera.at<float>(1, 2) = cameraParams.cy;
+//	camera.at<float>(2, 2) = 1;
 }
 
 
@@ -34,6 +34,7 @@ void PointSolver::solve (cv::Mat *processedInputImage, Point3 &startPosition, Qu
 	orientation0 = startOrientation;
 
 	prepareImage ();
+	projectLines ();
 }
 
 
@@ -54,6 +55,21 @@ void PointSolver::prepareImage ()
 			}
 		}
 	}
+}
+
+
+void debugProjection (vector<Point2> &projResult)
+{
+	cv::Mat proj = cv::Mat::zeros (480, 640, CV_8UC1);
+	for (int i=0; i<projResult.size(); i++) {
+		Point2 point = projResult[i];
+		if (point.x() >= 0 and point.x() <= 640 and point.y()>=0 and point.y()<=480) {
+			int u = point.x(), v = point.y();
+			proj.at<uint8_t> (v,u) = 255;
+		}
+	}
+
+	cv::imwrite ("/tmp/debugprojection.png", proj);
 }
 
 
@@ -86,6 +102,7 @@ void PointSolver::projectLines ()
 	Camera::CameraIntrinsic &cameraParams = glcanvas->getCamera()->getCameraParam();
 
 	projectPoints_tf (position0, orientation0, cameraParams, map, result_tf);
+	debugProjection (result_tf);
 
 	return;
 }
