@@ -67,6 +67,8 @@ static const float
 
 class RenderWidget;
 class ImageDisplay;
+class VectorMap;
+class PointSolver;
 
 
 class MatchWindow: public QMainWindow {
@@ -128,6 +130,9 @@ protected:
 	void closeEvent (QCloseEvent *event);
 
 	//sensor_msgs::CameraInfo cameraInfo;
+
+	VectorMap *vmap;
+	PointSolver *cameraFix;
 };
 
 

@@ -18,12 +18,14 @@
 #include <QtGui/QPainter>
 #include <QtGui/QCheckBox>
 #include "Pose.h"
+#include "vector_map.h"
+#include "PointSolver.h"
 
 
 using std::string;
 
 
-void insertObjects (RenderWidget *w);
+void insertObjects (RenderWidget *w, VectorMap *mapsrc);
 
 
 // XXX: get real camera info
@@ -36,6 +38,8 @@ float
 	cx = 988.511326762,
 	cy = 692.803953253;
 } CameraInfo;
+
+#define VECTOR_MAP_PATH "/var/tmp/nuvm"
 
 
 MatchWindow::MatchWindow () :
@@ -59,9 +63,12 @@ MatchWindow::MatchWindow () :
 		centralWidget);
 	imagesContainer->layout()->addWidget (imageDisplay);
 
+	vmap = new VectorMap ();
+	vmap->loadAll (VECTOR_MAP_PATH);
+
 	// glcanvas must be added in widget hierarchy
 	imagesContainer->layout()->addWidget (glcanvas);
-	insertObjects (glcanvas);
+	insertObjects (glcanvas, vmap);
 
 	/* Poor man's toolbar */
 	QWidget *btnBar = new QWidget (centralWidget);
@@ -129,12 +136,16 @@ MatchWindow::MatchWindow () :
 	poseBox->layout()->addWidget(posContainer);
 	poseBox->layout()->addWidget(oriContainer);
 
+	cameraFix = new PointSolver (vmap, glcanvas);
+
 	return;
 }
 
 
 MatchWindow::~MatchWindow()
-{}
+{
+	delete (vmap);
+}
 
 
 void MatchWindow::updatePoseText ()
@@ -210,15 +221,13 @@ void MatchWindow::captureClicked()
 
 void MatchWindow::searchButtonClicked ()
 {
-	cv::Mat *mask = &imageDisplay->getMask();
-	Point3 pt = imageSearch (imageDisplay->getProcessedGray(), glcanvas, mask);
-	std::cout << pt << std::endl;
-	glcanvas->pose()->offset(pt);
+//	cv::Mat *mask = &imageDisplay->getMask();
+//	Point3 pt = imageSearch (imageDisplay->getProcessedGray(), glcanvas, mask);
+//	std::cout << pt << std::endl;
+//	glcanvas->pose()->offset(pt);
 
-//	cv::Mat &imgProcGray = imageDisplay->getProcessedGray();
-//	ImageMatch search (imgProcGray, glcanvas, mask);
-//	Point3 transOff = search.find();
-//	glcanvas->pose()->offset (transOff);
+	cv::Mat pcGray = imageDisplay->getProcessedGray();
+	cameraFix->solve (&pcGray, glcanvas->pose()->getPosition(), glcanvas->pose()->getOrientation());
 
 	glcanvas->draw(true);
 	imageDisplay->repaint();
@@ -324,7 +333,6 @@ void LabelWithTextBox::minusClick()
 #include "PolesDraw.h"
 #include "DirectionArrow.h"
 #include "sensor_msgs/CameraInfo.h"
-#include "vector_map.h"
 #include "AreaList.h"
 #include "Gutters.h"
 
@@ -352,11 +360,8 @@ void LabelWithTextBox::minusClick()
 //}
 
 
-void insertObjects (RenderWidget *w)
+void insertObjects (RenderWidget *w, VectorMap *mapsrc)
 {
-	VectorMap *mapsrc = new VectorMap ();
-	mapsrc->loadAll ("/var/tmp/nuvm");
-
 	// XXX: May need to remove this part
 //	MapPoints *map = new MapPoints (mapsrc, w);
 //	map->setPointSize (3.0);

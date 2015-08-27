@@ -73,7 +73,18 @@ public:
 	void setViewMatrix (const Matrix4 &vm)
 	{ viewMatrix = vm; }
 
+
 	void setProjectionMatrix (const Matrix4 &pm);
+
+
+	struct CameraIntrinsic {
+		float fx, fy,
+			wi, wh,
+			cx, cy;
+	};
+
+
+	CameraIntrinsic &getCameraParam () { return cameraParams; }
 
 
 private:
@@ -89,6 +100,8 @@ private:
 		float fovy, aspectRatio, zNear, zFar;
 		bool isPerpective;
 	} _perspective;
+
+	CameraIntrinsic cameraParams;
 };
 
 #endif /* SRC_CAMERA_H_ */

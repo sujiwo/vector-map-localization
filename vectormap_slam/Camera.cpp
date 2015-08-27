@@ -139,6 +139,8 @@ void Camera::projectionMatrixFromCameraInfo (float fx, float fy, int w, int h, f
 	projectionMatrix(2, 2) = -(far_plane+near_plane) / (far_plane-near_plane);
 	projectionMatrix(2, 3) = -2.0*far_plane*near_plane / (far_plane-near_plane);
 	projectionMatrix(3, 2) = -1;
+
+	cameraParams = {fx, fy, w, h, cx, cy};
 }
 
 
