@@ -1,0 +1,6 @@
+foreach lines as lineSegment :
+	project point A, B from lineSegment
+	if (A and B are out of screen) OR (A and B are beyond FAR PLANE):
+		skip
+	compute Jacobian values
+	store lineSegment

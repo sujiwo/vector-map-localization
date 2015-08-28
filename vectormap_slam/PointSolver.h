@@ -46,6 +46,12 @@ public:
 	};
 
 
+	struct LineSegment2D {
+		ProjectedPoint A, B;
+		int mapLid;
+	};
+
+
 private:
 	VectorMap *map;
 	RenderWidget *glcanvas;
@@ -60,12 +66,11 @@ private:
 	// this vector is a list of all white points in source image
 	vector<ImagePoint> imagePoints;
 	// list of all lines currently visible when projected in image
-	vector<Line> visibleLines;
+	vector<LineSegment2D> visibleLines;
 
 	void prepareImage ();
 	void projectLines ();
 
-	void computeJacobian ();
 };
 
 #endif /* POINTSOLVER_H_ */
