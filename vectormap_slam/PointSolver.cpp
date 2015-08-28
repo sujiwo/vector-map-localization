@@ -101,12 +101,16 @@ void projectPoints_tf (Point3 &p0, Quaternion &o0, Camera::CameraIntrinsic &came
 }
 
 
-void computeJacobian (
+void computeProjectionJacobian (
 	Point3 &pos,			// Camera center coordinate
 	Quaternion &ori,		// Camera orientation
 	Point3 &point,			// Original point position
 	Point3 &pcam,			// Point in camera coordinate
 	Point2 &pim,			// Point in image
+	float fx,
+	float fy,
+	float cx,
+	float cy,	// From Intrinsic Matrix
 	pscalar jacobian[7][2]	// jacobian result
 	)
 {
@@ -166,8 +170,12 @@ void PointSolver::projectLines ()
 
 		Point3 _PAcam_ (PAcam.x(), PAcam.y(), PAcam.z());
 		Point3 _PBcam_ (PBcam.x(), PBcam.y(), PBcam.z());
-		computeJacobian (position0, orientation0, A, _PAcam_, PAim, P1.jacobian);
-		computeJacobian (position0, orientation0, B, _PBcam_, PBim, P2.jacobian);
+		computeProjectionJacobian (position0, orientation0, A, _PAcam_, PAim,
+				camera.fx, camera.fy, camera.cx, camera.cy,
+				P1.jacobian);
+		computeProjectionJacobian (position0, orientation0, B, _PBcam_, PBim,
+				camera.fx, camera.fy, camera.cx, camera.cy,
+				P2.jacobian);
 
 		visibleLines.push_back (lix);
 	}
