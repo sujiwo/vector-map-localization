@@ -19,11 +19,14 @@
 using std::vector;
 class RenderWidget;
 
+typedef float pscalar;
+
+
 
 class PointSolver
 {
 public:
-	PointSolver (VectorMap *src, RenderWidget *gl);
+	PointSolver (VectorMap *src, RenderWidget *gl, int targetWidth, int targetHeight);
 
 	// XXX: requires output
 	void solve (cv::Mat *processedInputImage, Point3 &startPosition, Quaternion &startOrientation);
@@ -36,6 +39,13 @@ public:
 	};
 
 
+	struct ProjectedPoint {
+		Point2 coord;
+		int mapPid;
+		pscalar jacobian[7][2];
+	};
+
+
 private:
 	VectorMap *map;
 	RenderWidget *glcanvas;
@@ -45,6 +55,7 @@ private:
 	Quaternion orientation0;
 	// Camera intrinsic parameters, required by OpenCV
 	cv::Mat camera;
+	int width, height;
 
 	// this vector is a list of all white points in source image
 	vector<ImagePoint> imagePoints;
@@ -53,6 +64,8 @@ private:
 
 	void prepareImage ();
 	void projectLines ();
+
+	void computeJacobian ();
 };
 
 #endif /* POINTSOLVER_H_ */

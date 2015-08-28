@@ -136,7 +136,7 @@ MatchWindow::MatchWindow () :
 	poseBox->layout()->addWidget(posContainer);
 	poseBox->layout()->addWidget(oriContainer);
 
-	cameraFix = new PointSolver (vmap, glcanvas);
+	cameraFix = new PointSolver (vmap, glcanvas, MatchWindow::defaultImageWidth, MatchWindow::defaultImageHeight);
 
 	return;
 }

@@ -10,14 +10,16 @@
 #include "Camera.h"
 
 
-PointSolver::PointSolver (VectorMap *src, RenderWidget *gl) :
+PointSolver::PointSolver (VectorMap *src, RenderWidget *gl, int w, int h) :
 	map (src),
-	glcanvas (gl)
+	glcanvas (gl),
+	width (w), height (h)
 {
 	// re-create camera parameters
 	// There may be differences with calculated camera matrix in Camera.cpp
-//	Camera::CameraIntrinsic &cameraParams = glcanvas->getCamera()->getCameraParam();
-//	camera = cv::Mat::zeros(0, 0, CV_32F);
+	Camera::CameraIntrinsic &cameraParams = glcanvas->getCamera()->getCameraParam();
+	camera = cv::Mat::zeros(3, 3, CV_32F);
+
 //	camera.at<float>(0, 0) = cameraParams.fx;
 //	camera.at<float>(0, 2) = cameraParams.cx;
 //	camera.at<float>(1, 1) = cameraParams.fy;
@@ -73,25 +75,23 @@ void debugProjection (vector<Point2> &projResult)
 }
 
 
-void projectPoints_tf (Point3 &p0, Quaternion &o0, Camera::CameraIntrinsic &camera, VectorMap *map, vector<Point2> &result)
+void projectPoints_tf (Point3 &p0, Quaternion &o0, Camera::CameraIntrinsic &camera, VectorMap *map, vector<Point2> &result, int w, int h)
 {
 	tf::Vector3 ptf0 (p0.x(), p0.y(), p0.z());
 	tf::Quaternion otf0 (o0.x(), o0.y(), o0.z(), o0.w());
 	tf::Transform tfs (otf0, ptf0);
 
+	double zoom_x = (double)w / (double)camera.wi,
+		zoom_y = (double)h / (double)camera.wh;
+
 	for (int i=1; i<=map->points.size(); i++) {
 		Point3 p3 = map->getPoint (i);
 		tf::Vector3 ptf (p3.x(), p3.y(), p3.z());
 		tf::Vector3 ptfdst = tfs (ptf);
-		Point2 pointScr (ptfdst.x() / ptfdst.z() + camera.cx, ptfdst.y() / ptfdst.z() + camera.cy);
+
+		Point2 pointScr (ptfdst.x()*camera.fx*zoom_x / ptfdst.z() + camera.cx*zoom_x, ptfdst.y()*camera.fy*zoom_y / ptfdst.z() + camera.cy*zoom_y);
 		result.push_back (pointScr);
 	}
-}
-
-
-void projectLines_cv (Point3 &p0, Quaternion &o0, Camera::CameraIntrinsic &camera, VectorMap *map, vector<Point2> &result)
-{
-	Eigen::Matrix3f rotmat = o0.matrix();
 }
 
 
@@ -101,7 +101,7 @@ void PointSolver::projectLines ()
 	vector<Point2> result_tf;
 	Camera::CameraIntrinsic &cameraParams = glcanvas->getCamera()->getCameraParam();
 
-	projectPoints_tf (position0, orientation0, cameraParams, map, result_tf);
+	projectPoints_tf (position0, orientation0, cameraParams, map, result_tf, width, height);
 	debugProjection (result_tf);
 
 	return;
