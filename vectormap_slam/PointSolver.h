@@ -82,7 +82,7 @@ private:
 
 	void prepareMatrices ();
 
-	static void debugProjection (vector<PointSolver::LineSegment2D> &projResult);
+	void debugProjection (vector<PointSolver::LineSegment2D> &projResult);
 
 	// solution matrices
 	Eigen::MatrixXd Jac;

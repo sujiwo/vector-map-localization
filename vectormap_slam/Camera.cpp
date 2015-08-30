@@ -158,7 +158,7 @@ void Camera::projectionMatrixFromCameraInfo (sensor_msgs::CameraInfo::ConstPtr i
 }
 
 
-bool Camera::project (const Point3 &pt, int &u, int &v, int reqImageWidth, int reqImageHeight)
+bool Camera::project (const Point3 &pt, int &u, int &v, int reqImageWidth, int reqImageHeight, bool useOpenGL)
 {
 	if (reqImageWidth==0 or reqImageHeight==0) {
 		reqImageWidth = imageWidth;
@@ -180,6 +180,10 @@ bool Camera::project (const Point3 &pt, int &u, int &v, int reqImageWidth, int r
 		vp = (float)reqImageHeight * prj.y();
 
 	u = (int)up, v = (int)vp;
+	if (useOpenGL==false) {
+		v = reqImageHeight - v;
+	}
+
 	return true;
 }
 

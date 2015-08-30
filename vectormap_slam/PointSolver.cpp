@@ -8,8 +8,12 @@
 #include "PointSolver.h"
 #include "RenderWidget.h"
 #include "Camera.h"
+#include <iostream>
+#include <fstream>
+#include <string>
 
 
+using std::string;
 const float farPlane = 50.0;
 
 
@@ -34,6 +38,8 @@ void PointSolver::solve (cv::Mat *processedInputImage, Point3 &startPosition, Qu
 	prepareImage ();
 	projectLines ();
 	debugProjection (visibleLines);
+	pairPointsWithLines ();
+	prepareMatrices ();
 }
 
 
@@ -59,6 +65,9 @@ void PointSolver::prepareImage ()
 
 void PointSolver::debugProjection (vector<PointSolver::LineSegment2D> &projResult)
 {
+	std::fstream dumpline;
+	dumpline.open ("/tmp/dumpl.txt", std::fstream::out);
+
 	cv::Mat proj = cv::Mat::zeros (480, 640, CV_8UC1);
 	for (int i=0; i<projResult.size(); i++) {
 		Point2 p1 = projResult[i].A.coord,
@@ -74,9 +83,15 @@ void PointSolver::debugProjection (vector<PointSolver::LineSegment2D> &projResul
 			proj.at<uint8_t> (v2,u2) = 255;
 		}
 		cv::line (proj, cv::Point2i(p1.x(),p1.y()), cv::Point2i(p2.x(),p2.y()), CV_RGB(255,255,255));
+		// XXX: dump these line segments and plot in opencv
+		dumpline << p1.x() << "," << p1.y() << "," << p2.x() << "," << p2.y() << "," << projResult[i].mapLid << std::endl;
 	}
 
 	cv::imwrite ("/tmp/debugprojection1.png", proj);
+
+	dumpline << "# Orientation: " << orientation0.w() << "," << orientation0.x() << "," << orientation0.y() << "," << orientation0.z() << std::endl;
+	dumpline << "# Position: " << position0 << std::endl;
+	dumpline.close();
 }
 
 
@@ -137,6 +152,29 @@ void computeProjectionJacobian (
 }
 
 
+void projectAllPoints (Camera *camera, VectorMap *map, int w, int h)
+{
+	vector<Point2> result;
+
+	for (int i=1; i<=map->points.size(); i++) {
+		int u, v;
+		Point3 P = map->getPoint (i);
+		if (camera->project (P, u, v, w, h, false) == true) {
+			Point2 pj (u, v);
+			result.push_back(pj);
+		}
+	}
+
+	cv::Mat proj = cv::Mat::zeros (h, w, CV_8UC1);
+	for (int i=0; i<result.size(); i++) {
+		Point2 P = result[i];
+		cv::circle (proj, cv::Point2i(P.x(), P.y()), 2, 255);
+	}
+
+	cv::imwrite ("/tmp/debugprojection2.png", proj);
+}
+
+
 void projectAllPoints (Point3 &p0, Quaternion &o0, Camera::CameraIntrinsic &camera, VectorMap *map, int w, int h)
 {
 	vector<Point2> result;
@@ -165,7 +203,8 @@ void projectAllPoints (Point3 &p0, Quaternion &o0, Camera::CameraIntrinsic &came
 		Point2 p1 = result[i];
 		if (p1.x() >= 0 and p1.x() <= 640 and p1.y()>=0 and p1.y()<=480) {
 			int u = p1.x(), v = p1.y();
-			proj.at<uint8_t> (v,u) = 255;
+			//proj.at<uint8_t> (v,u) = 255;
+			cv::circle (proj, cv::Point2i(u,v), 2, 255);
 		}
 	}
 
@@ -173,17 +212,12 @@ void projectAllPoints (Point3 &p0, Quaternion &o0, Camera::CameraIntrinsic &came
 }
 
 
-//void PointSolver::projectLines ()
-//{
-//
-//}
-
-
 void PointSolver::projectLines ()
 {
 	Camera::CameraIntrinsic camera = glcanvas->getCamera()->getCameraParam();
 
-	//projectAllPoints (position0, orientation0, camera, map, width, height);
+	projectAllPoints (glcanvas->getCamera(), map, 640, 480);
+//	projectAllPoints (position0, orientation0, camera, map, width, height);
 
 	visibleLines.clear();
 
@@ -219,7 +253,7 @@ void PointSolver::projectLines ()
 			PBcam.y()*camera.fy/PBcam.z() + camera.cy
 		);
 
-		// filter these points
+		// filter this line. We check for visibility in screen
 		if (PAcam.z()<0 and PBcam.z()<0) {
 			continue;
 		}

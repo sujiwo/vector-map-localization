@@ -51,7 +51,7 @@ public:
 		return Point3 (p4.x(), p4.y(), p4.z()) / p4.w();
 	}
 
-	bool project (const Point3 &pt, int &u, int &v, int reqImageWidth=0, int reqImageHeight=0);
+	bool project (const Point3 &pt, int &u, int &v, int reqImageWidth=0, int reqImageHeight=0, bool useOpenGL=true);
 
 	// Transform a point to camera coordinate
 	inline Point3 transform (const Point3 &pt)
