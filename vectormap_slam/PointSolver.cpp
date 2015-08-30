@@ -21,13 +21,6 @@ PointSolver::PointSolver (VectorMap *src, RenderWidget *gl, int w, int h) :
 	// re-create camera parameters
 	// There may be differences with calculated camera matrix in Camera.cpp
 	Camera::CameraIntrinsic &cameraParams = glcanvas->getCamera()->getCameraParam();
-	camera = cv::Mat::zeros(3, 3, CV_32F);
-
-//	camera.at<float>(0, 0) = cameraParams.fx;
-//	camera.at<float>(0, 2) = cameraParams.cx;
-//	camera.at<float>(1, 1) = cameraParams.fy;
-//	camera.at<float>(1, 2) = cameraParams.cy;
-//	camera.at<float>(2, 2) = 1;
 }
 
 
@@ -40,6 +33,7 @@ void PointSolver::solve (cv::Mat *processedInputImage, Point3 &startPosition, Qu
 
 	prepareImage ();
 	projectLines ();
+	debugProjection (visibleLines);
 }
 
 
@@ -63,23 +57,90 @@ void PointSolver::prepareImage ()
 }
 
 
-void debugProjection (vector<Point2> &projResult)
+void PointSolver::debugProjection (vector<PointSolver::LineSegment2D> &projResult)
 {
 	cv::Mat proj = cv::Mat::zeros (480, 640, CV_8UC1);
 	for (int i=0; i<projResult.size(); i++) {
-		Point2 point = projResult[i];
-		if (point.x() >= 0 and point.x() <= 640 and point.y()>=0 and point.y()<=480) {
-			int u = point.x(), v = point.y();
-			proj.at<uint8_t> (v,u) = 255;
+		Point2 p1 = projResult[i].A.coord,
+				p2 = projResult[i].B.coord;
+
+		int u1, v1, u2, v2;
+		if (p1.x() >= 0 and p1.x() <= 640 and p1.y()>=0 and p1.y()<=480) {
+			u1 = p1.x(), v1 = p1.y();
+			proj.at<uint8_t> (v1,u1) = 255;
 		}
+		if (p2.x() >= 0 and p2.x() <= 640 and p2.y()>=0 and p2.y()<=480) {
+			u2 = p2.x(), v2 = p2.y();
+			proj.at<uint8_t> (v2,u2) = 255;
+		}
+		cv::line (proj, cv::Point2i(p1.x(),p1.y()), cv::Point2i(p2.x(),p2.y()), CV_RGB(255,255,255));
 	}
 
-	cv::imwrite ("/tmp/debugprojection.png", proj);
+	cv::imwrite ("/tmp/debugprojection1.png", proj);
 }
 
 
-void projectPoints_tf (Point3 &p0, Quaternion &o0, Camera::CameraIntrinsic &camera, VectorMap *map, vector<Point2> &result, int w, int h)
+void computeProjectionJacobian (
+	Point3 &t,			// Camera center coordinate
+	Quaternion &q,		// Camera orientation
+	Point3 &point,			// Original point position
+	Point3 &pcam,			// Point in camera coordinate
+	Point2 &pim,			// Point in image
+	float fx,
+	float fy,
+	float cx,
+	float cy,	// From Intrinsic Matrix
+	pscalar jacobian[7][2]	// jacobian result
+	)
 {
+	pscalar Z = pcam.z();
+	pscalar x = point.x(),
+			y = point.y(),
+			z = point.z();
+	pscalar
+		Tx = 2 * (q.w()*q.y() - q.x()*q.z()),
+		Ty = -2 * (q.y()*q.z() + q.w()*q.x()),
+		Tz = 2*q.y()*q.y() + 2*q.x()*q.x() - 1,
+		Qx = -4*q.x()*(z-t.z()) + 2*q.w()*(y-t.y()) + 2*q.z()*(x-t.x()),
+		Qy = -4*q.y()*(z-t.z()) + 2*q.z()*(y-t.y()) - 2*q.w()*(x-t.x()),
+		Qz = 2*q.y()*(y - t.y()) + 2*q.x()*(x - t.x()),
+		Qw = 2*q.x()*(y - t.y()) - 2*q.y()*(x - t.x());
+
+	// dtxx
+	jacobian[0][0] = ((fx*(2*q.z()*q.z() + 2*q.y()*q.y()-1) + cx*Tx) / Z) - Tx*pim.x()/Z;
+	// dtxy
+	jacobian[0][1] = ((cy*Tx + fy*(-2*q.w()*q.z()-2*q.x()*q.y())) / Z) - Tx*pim.y()/Z;
+	// dtyx
+	jacobian[1][0] = ((cx*Ty+fx*(2*q.w()*q.z()-2*q.x()*q.y())) / Z) - Ty*pim.x()/Z;
+	// dtyy
+	jacobian[1][1] = ((fy*(2*q.z()*q.z() + 2*q.x()*q.x() - 1) + cy*Ty) / Z) - Ty*pim.y()/Z;
+	// dtzx
+	jacobian[2][0] = ((fx*(-2*q.x()*q.z()-2*q.w()*q.y()) + cx*Tz) / Z) - ((Tz*pim.x())/Z);
+	// dtzy
+	jacobian[2][1] = ((fx*(-2*q.x()*q.z()-2*q.w()*q.y()) + cx*Tz) / Z) - ((Tz*pim.y())/Z);
+	// dqxx
+	jacobian[3][0] = ((fx*(2*q.z()*(z-t.z()) + 2*q.y()*(y-t.y())) + cx*Qx)/Z) - (Qx*pim.x()/Z);
+	// dqxy
+	jacobian[3][1] = ((cy*Qx + fy*(-2*q.w()*(z-t.z()) -4*q.x()*(y-t.y()) + 2*q.y()*(x-t.x())) )/Z) - (Qx*pim.y()/Z);
+	// dqyx
+	jacobian[4][0] = (cx*Qy + fx*(2*q.w()*(z-t.z()) +2*q.x()*(y-t.y()) -4*q.y()*(x-t.x())))/Z  -  Qy*pim.x()/Z;
+	// dqyy
+	jacobian[4][1] = (fy*(2*q.z()*(z-t.z()) + 2*q.x()*(x-t.x())) + cy*Qy)/Z  -  Qy*pim.y()/Z;
+	// dqzx
+	jacobian[5][0] = (fx*(2*q.x()*(z-t.z()) - 2*q.w()*(y-t.y()) - 4*q.z()*(x-t.x())) + cx*Qz)/Z - Qz*pim.x()/Z;
+	// dqzy
+	jacobian[5][1] = (fy*(2*q.y()*(z-t.z()) - 4*q.z()*(y-t.y()) + 2*q.w()*(x-t.x())) + cy*Qz)/Z - Qz*pim.y()/Z;
+	// dqwx
+	jacobian[6][0] = (fx*(2*q.y()*(z-t.z()) - 2*q.z()*(y-t.y())) + cx*Qw)/Z - Qw*pim.x()/Z;
+	// dqwy
+	jacobian[6][1] = (fy*(2*q.z()*(x-t.x()) - 2*q.x()*(z-t.z())) + cy*Qw)/Z - Qw*pim.y()/Z;
+}
+
+
+void projectAllPoints (Point3 &p0, Quaternion &o0, Camera::CameraIntrinsic &camera, VectorMap *map, int w, int h)
+{
+	vector<Point2> result;
+
 	tf::Vector3 ptf0 (p0.x(), p0.y(), p0.z());
 	tf::Quaternion otf0 (o0.x(), o0.y(), o0.z(), o0.w());
 	tf::Transform tfs (otf0, ptf0);
@@ -98,31 +159,33 @@ void projectPoints_tf (Point3 &p0, Quaternion &o0, Camera::CameraIntrinsic &came
 
 		result.push_back (pointScr);
 	}
+
+	cv::Mat proj = cv::Mat::zeros (480, 640, CV_8UC1);
+	for (int i=0; i<result.size(); i++) {
+		Point2 p1 = result[i];
+		if (p1.x() >= 0 and p1.x() <= 640 and p1.y()>=0 and p1.y()<=480) {
+			int u = p1.x(), v = p1.y();
+			proj.at<uint8_t> (v,u) = 255;
+		}
+	}
+
+	cv::imwrite ("/tmp/debugprojection2.png", proj);
 }
 
 
-void computeProjectionJacobian (
-	Point3 &pos,			// Camera center coordinate
-	Quaternion &ori,		// Camera orientation
-	Point3 &point,			// Original point position
-	Point3 &pcam,			// Point in camera coordinate
-	Point2 &pim,			// Point in image
-	float fx,
-	float fy,
-	float cx,
-	float cy,	// From Intrinsic Matrix
-	pscalar jacobian[7][2]	// jacobian result
-	)
-{
-
-}
+//void PointSolver::projectLines ()
+//{
+//
+//}
 
 
 void PointSolver::projectLines ()
 {
-	visibleLines.clear();
-	vector<Point2> result_tf;
 	Camera::CameraIntrinsic camera = glcanvas->getCamera()->getCameraParam();
+
+	//projectAllPoints (position0, orientation0, camera, map, width, height);
+
+	visibleLines.clear();
 
 	tf::Vector3 ptf0 (position0.x(), position0.y(), position0.z());
 	tf::Quaternion otf0 (orientation0.x(), orientation0.y(), orientation0.z(), orientation0.w());
@@ -147,17 +210,26 @@ void PointSolver::projectLines ()
 		tf::Vector3 PAcam = cameraEx (PA),
 			PBcam = cameraEx (PB);
 
-		Point2 PAim (PAcam.x()*camera.fx/PAcam.z() + camera.cx, PAcam.y()*camera.fy/PAcam.z());
-		Point2 PBim (PBcam.x()*camera.fx/PBcam.z() + camera.cx, PBcam.y()*camera.fy/PBcam.z());
+		Point2 PAim (
+			PAcam.x()*camera.fx/PAcam.z() + camera.cx,
+			PAcam.y()*camera.fy/PAcam.z() + camera.cy
+		);
+		Point2 PBim (
+			PBcam.x()*camera.fx/PBcam.z() + camera.cx,
+			PBcam.y()*camera.fy/PBcam.z() + camera.cy
+		);
 
 		// filter these points
-		if (PAcam.z()<0 and PBcam.z()<0)
+		if (PAcam.z()<0 and PBcam.z()<0) {
 			continue;
-		if (PAcam.z()>farPlane and PBcam.z()>farPlane)
+		}
+		if (PAcam.z()>farPlane and PBcam.z()>farPlane) {
 			continue;
+		}
 		if ((PAim.x()<0 or PAim.x()>width or PAim.y()<0 or PAim.y()>width) and
-			(PBim.x()<0 or PBim.x()>width or PBim.y()<0 or PBim.y()>width))
+			(PBim.x()<0 or PBim.x()>width or PBim.y()<0 or PBim.y()>width)) {
 			continue;
+		}
 
 		ProjectedPoint P1, P2;
 		P1.coord = PAim;
@@ -180,8 +252,89 @@ void PointSolver::projectLines ()
 		visibleLines.push_back (lix);
 	}
 
-//	projectPoints_tf (position0, orientation0, cameraParams, map, result_tf, width, height);
-//	debugProjection (result_tf);
-
 	return;
+}
+
+
+pscalar PointSolver::LineSegment2D::error(Point2 &P)
+{
+	pscalar lsegmentsq = this->lengthSquared();
+	Point2 Q = A.coord + (B.coord-A.coord)*((P-A.coord).dot(B.coord-A.coord)) / lsegmentsq;
+	return (Q-P).dot(Q-P);
+}
+
+
+pscalar PointSolver::LineSegment2D::errorJacobian (Point2 &P, pscalar *jm)
+{
+	pscalar lsegmentsq = this->lengthSquared();
+
+	pscalar dep1x, dep1y, dep2x, dep2y;
+	pscalar p1x = A.coord.x(),
+			p1y = A.coord.y(),
+			p2x = B.coord.x(),
+			p2y = B.coord.y(),
+			px = P.x(), py = P.y();
+
+	dep1x = -2*(p2y-p1y)*
+		(p2x*py-p1x*py-p2y*px+p1y*px+p1x*p2y-p1y*p2x) *
+		(p2y*py-p1y*py+p2x*px-p1x*px-p2y*p2y+p1y*p2y-p2x*p2x+p1x*p2x) /
+		(lsegmentsq * lsegmentsq);
+	dep1y = 2*(p2x-p1x)*
+		(p2x*py-p1x*py-p2y*px+p1y*px+p1x*p2y-p1y*p2x) *
+		(p2y*py-p1y*py+p2x*px-p1x*px-p2y*p2y+p1y*p2y-p2x*p2x+p1x*p2x) /
+		(lsegmentsq * lsegmentsq);
+	dep2x = 2*(p2y-p1y)*
+		(p2x*py-p1x*py-p2y*px+p1y*px+p1x*p2y-p1y*p2x) *
+		(p2y*py-p1y*py+p2x*px-p1x*px-p1y*p2y-p1x*p2x+p1y*p1y+p1x*p1x) /
+		(lsegmentsq * lsegmentsq);
+	dep2y = -2*(p2x-p1x)*
+		(p2x*py-p1x*py-p2y*px+p1y*px+p1x*p2y-p1y*p2x)*
+		(p2y*py-p1y*py+p2x*px-p1x*px-p1y*p2y-p1x*p2x+p1y*p1y+p1x*p1x) /
+		(lsegmentsq * lsegmentsq);
+
+	for (int i=0; i<7; i++) {
+		jm[i] = dep1x*A.jacobian[i][0] + dep1y*A.jacobian[i][1] + dep2x*B.jacobian[i][0] + dep2y*B.jacobian[i][1];
+	}
+}
+
+
+void PointSolver::prepareMatrices()
+{
+	Jac = Eigen::MatrixXd (imagePoints.size(), 7);
+	Pcorrect = Eigen::VectorXd (7);
+	pointErrs = Eigen::VectorXd (imagePoints.size());
+
+	for (int ip=0; ip<imagePoints.size(); ip++) {
+		pointErrs [ip] = imagePoints[ip].lineDistance;
+		Point2 curpt (imagePoints[ip].px, imagePoints[ip].py);
+
+		pscalar jacobianPt[7];
+
+		LineSegment2D &line = visibleLines[imagePoints[ip].nearestLine];
+		line.errorJacobian(curpt, jacobianPt);
+		for (int n=0; n<7; n++) {
+			Jac(ip, n) = jacobianPt[7];
+		}
+	}
+}
+
+
+void PointSolver::pairPointsWithLines()
+{
+	for (int ip=0; ip<imagePoints.size(); ip++) {
+		ImagePoint &pixel = imagePoints[ip];
+
+		Point2 P (pixel.px, pixel.py);
+		pscalar cdist = 1e32;
+
+		// find nearest line
+		for (int il=0; il<visibleLines.size(); il++) {
+			LineSegment2D &line = visibleLines[il];
+			pscalar dist = line.error (P);
+			if (dist < cdist) {
+				pixel.nearestLine = il;
+				pixel.lineDistance = dist;
+			}
+		}
+	}
 }

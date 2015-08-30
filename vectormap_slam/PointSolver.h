@@ -35,7 +35,7 @@ public:
 	struct ImagePoint {
 		float px, py;
 		int nearestLine;
-		float lineDistance;
+		pscalar lineDistance;
 	};
 
 
@@ -49,6 +49,15 @@ public:
 	struct LineSegment2D {
 		ProjectedPoint A, B;
 		int mapLid;
+
+		pscalar error (Point2 &p);
+		pscalar errorJacobian (Point2 &p, pscalar jacobianMat[7]);
+
+		pscalar lengthSquared ()
+		{ return (B.coord - A.coord).squaredNorm(); }
+
+		pscalar length ()
+		{ return (B.coord - A.coord).norm(); }
 	};
 
 
@@ -59,8 +68,6 @@ private:
 	cv::Mat *image;
 	Point3 position0;
 	Quaternion orientation0;
-	// Camera intrinsic parameters, required by OpenCV
-	cv::Mat camera;
 	int width, height;
 
 	// this vector is a list of all white points in source image
@@ -71,6 +78,15 @@ private:
 	void prepareImage ();
 	void projectLines ();
 
+	void pairPointsWithLines ();
+
+	void prepareMatrices ();
+
+	static void debugProjection (vector<PointSolver::LineSegment2D> &projResult);
+
+	// solution matrices
+	Eigen::MatrixXd Jac;
+	Eigen::VectorXd Pcorrect, pointErrs;
 };
 
 #endif /* POINTSOLVER_H_ */

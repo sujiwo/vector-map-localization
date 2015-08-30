@@ -22,19 +22,27 @@ e(P1, P2) := (P-Q) . (P-Q);
 /* [wxMaxima: input   end   ] */
 
 /* [wxMaxima: input   start ] */
-diff (e(P1, P2), p1x);
+len: (P2-P1) . (P2-P1);
 /* [wxMaxima: input   end   ] */
 
 /* [wxMaxima: input   start ] */
-diff (e(P1, P2), p1y);
+factor( diff (e(P1, P2), p1x) );
 /* [wxMaxima: input   end   ] */
 
 /* [wxMaxima: input   start ] */
-diff (e(P1, P2), p2x);
+factor( diff (e(P1, P2), p1y) );
 /* [wxMaxima: input   end   ] */
 
 /* [wxMaxima: input   start ] */
-diff (e(P1, P2), p2y);
+factor ( diff (e(P1, P2), p2x) );
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+factor (diff (e(P1, P2), p2y) );
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+factor (x^2 -2*x+1);
 /* [wxMaxima: input   end   ] */
 
 /* Maxima can't load/batch files which end with a comment! */
