@@ -58,6 +58,8 @@ public:
 
 		pscalar length ()
 		{ return (B.coord - A.coord).norm(); }
+
+		pscalar distanceSquared (Point2 &p);
 	};
 
 
@@ -75,9 +77,8 @@ private:
 	// list of all lines currently visible when projected in image
 	vector<LineSegment2D> visibleLines;
 
-	void prepareImage ();
 	void projectLines ();
-	void pairPointsWithLines ();
+	void prepareImage ();
 	void prepareMatrices ();
 	void solveForCorrection ();
 

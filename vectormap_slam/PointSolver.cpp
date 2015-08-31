@@ -34,48 +34,23 @@ void PointSolver::solve (cv::Mat *processedInputImage, Point3 &startPosition, Qu
 	position0 = startPosition;
 	orientation0 = startOrientation;
 
-	prepareImage ();
 	projectLines ();
 	debugProjection (visibleLines);
-	pairPointsWithLines ();
+	prepareImage ();
 	debugPointLinePair ();
 
 	prepareMatrices ();
-//	solveForCorrection ();
-//
-//	cout << "Before: " << std::endl;
-//	cout << startPosition << std::endl;
-//
-//	startPosition.x() -= Pcorrect[0];
-//	startPosition.y() -= Pcorrect[1];
-//	startPosition.z() -= Pcorrect[2];
-//	startOrientation.x() -= Pcorrect[3];
-//	startOrientation.y() -= Pcorrect[4];
-//	startOrientation.z() -= Pcorrect[5];
-//	startOrientation.w() -= Pcorrect[6];
-//
-//	cout << "After: " << std::endl;
-//	cout << Pcorrect << std::endl;
-}
+	solveForCorrection ();
 
+	startPosition.x() -= Pcorrect[0];
+	startPosition.y() -= Pcorrect[1];
+	startPosition.z() -= Pcorrect[2];
+	startOrientation.x() -= Pcorrect[3];
+	startOrientation.y() -= Pcorrect[4];
+	startOrientation.z() -= Pcorrect[5];
+	startOrientation.w() -= Pcorrect[6];
 
-void PointSolver::prepareImage ()
-{
-	imagePoints.clear();
-
-	for (int i=0; i<image->rows; i++) {
-		uint8_t *p = image->ptr<uint8_t> (i);
-		for (int j=0; j<image->cols; j++) {
-			if (p[j] !=0 ) {
-				ImagePoint pt;
-				pt.px = j;
-				pt.py = i;
-				pt.nearestLine = -1;
-				pt.lineDistance = -1;
-				imagePoints.push_back (pt);
-			}
-		}
-	}
+	cout << Pcorrect << std::endl;
 }
 
 
@@ -89,8 +64,6 @@ void PointSolver::debugProjection (vector<PointSolver::LineSegment2D> &projResul
 		Point2 p1 = projResult[i].A.coord,
 				p2 = projResult[i].B.coord;
 
-//		cv::circle (proj, cv::Point2i(p1.x(), p1.y()), 2, 255);
-//		cv::circle (proj, cv::Point2i(p2.x(), p2.y()), 2, 255);
 		cv::line (proj, cv::Point2i(p1.x(),p1.y()), cv::Point2i(p2.x(),p2.y()), CV_RGB(255,255,255));
 		dumpline << p1.x() << "," << p1.y() << "," << p2.x() << "," << p2.y() << "," << projResult[i].mapLid << std::endl;
 	}
@@ -304,21 +277,37 @@ void PointSolver::prepareMatrices ()
 }
 
 
-void PointSolver::pairPointsWithLines()
+void PointSolver::prepareImage ()
 {
-	for (int ip=0; ip<imagePoints.size(); ip++) {
-		ImagePoint &pixel = imagePoints[ip];
+	imagePoints.clear();
 
-		Point2 P (pixel.px, pixel.py);
-		pscalar cdist = 1e32;
+	for (int i=0; i<image->rows; i++) {
+		uint8_t *p = image->ptr<uint8_t> (i);
+		for (int j=0; j<image->cols; j++) {
+			if (p[j] !=0 ) {
+				ImagePoint pt;
+				pt.px = j;
+				pt.py = i;
+				pt.nearestLine = -1;
+				pt.lineDistance = -1;
+				// imagePoints.push_back (pt);
 
-		// find nearest line
-		for (int il=0; il<visibleLines.size(); il++) {
-			LineSegment2D &line = visibleLines[il];
-			pscalar dist = line.error (P);
-			if (dist < cdist) {
-				pixel.nearestLine = il;
-				pixel.lineDistance = dist;
+				Point2 P (pt.px, pt.py);
+				pt.lineDistance = 1e32;
+
+				// find nearest line
+				for (int il=0; il<visibleLines.size(); il++) {
+					LineSegment2D &line = visibleLines[il];
+					pscalar dist = line.distanceSquared(P);
+					if (dist < pt.lineDistance) {
+						pt.nearestLine = il;
+						pt.lineDistance = dist;
+					}
+				}
+
+				if (pt.lineDistance < 10000.0) {
+					imagePoints.push_back (pt);
+				}
 			}
 		}
 	}
@@ -346,4 +335,18 @@ void PointSolver::debugPointLinePair ()
 	}
 
 	dumpPoint.close ();
+}
+
+
+pscalar PointSolver::LineSegment2D::distanceSquared (Point2 &P)
+{
+	Vector2 M = B.coord - A.coord;
+	pscalar t = M.dot(P-A.coord) / (M.squaredNorm());
+
+	if (t<=0)
+		return (P-A.coord).squaredNorm();
+	else if (t>0 and t<1)
+		return (P - (A.coord+M*t)).squaredNorm();
+	else
+		return (P - B.coord).squaredNorm();
 }
