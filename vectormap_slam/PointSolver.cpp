@@ -68,20 +68,13 @@ void PointSolver::debugProjection (vector<PointSolver::LineSegment2D> &projResul
 	std::fstream dumpline;
 	dumpline.open ("/tmp/dumpl.txt", std::fstream::out);
 
-	cv::Mat proj = cv::Mat::zeros (480, 640, CV_8UC1);
+	cv::Mat proj = cv::Mat::zeros (height, width, CV_8UC1);
 	for (int i=0; i<projResult.size(); i++) {
 		Point2 p1 = projResult[i].A.coord,
 				p2 = projResult[i].B.coord;
 
-		int u1, v1, u2, v2;
-		if (p1.x() >= 0 and p1.x() <= 640 and p1.y()>=0 and p1.y()<=480) {
-			u1 = p1.x(), v1 = p1.y();
-			proj.at<uint8_t> (v1,u1) = 255;
-		}
-		if (p2.x() >= 0 and p2.x() <= 640 and p2.y()>=0 and p2.y()<=480) {
-			u2 = p2.x(), v2 = p2.y();
-			proj.at<uint8_t> (v2,u2) = 255;
-		}
+		cv::circle (proj, cv::Point2i(p1.x(), p1.y()), 2, 255);
+		cv::circle (proj, cv::Point2i(p2.x(), p2.y()), 2, 255);
 		cv::line (proj, cv::Point2i(p1.x(),p1.y()), cv::Point2i(p2.x(),p2.y()), CV_RGB(255,255,255));
 		// XXX: dump these line segments and plot in opencv
 		dumpline << p1.x() << "," << p1.y() << "," << p2.x() << "," << p2.y() << "," << projResult[i].mapLid << std::endl;
@@ -90,7 +83,7 @@ void PointSolver::debugProjection (vector<PointSolver::LineSegment2D> &projResul
 	cv::imwrite ("/tmp/debugprojection1.png", proj);
 
 	dumpline << "# Orientation: " << orientation0.w() << "," << orientation0.x() << "," << orientation0.y() << "," << orientation0.z() << std::endl;
-	dumpline << "# Position: " << position0 << std::endl;
+	dumpline << "# Position: " << position0.x() << "," << position0.y() << "," << position0.z() << std::endl;
 	dumpline.close();
 }
 
@@ -154,114 +147,59 @@ void computeProjectionJacobian (
 
 void projectAllPoints (Camera *camera, VectorMap *map, int w, int h)
 {
-	vector<Point2> result;
-
-	for (int i=1; i<=map->points.size(); i++) {
-		int u, v;
-		Point3 P = map->getPoint (i);
-		if (camera->project (P, u, v, w, h, false) == true) {
-			Point2 pj (u, v);
-			result.push_back(pj);
-		}
-	}
-
 	cv::Mat proj = cv::Mat::zeros (h, w, CV_8UC1);
-	for (int i=0; i<result.size(); i++) {
-		Point2 P = result[i];
-		cv::circle (proj, cv::Point2i(P.x(), P.y()), 2, 255);
+
+	for(std::map<int, Line>::iterator it=map->lines.begin(); it!=map->lines.end(); it++) {
+		Line l = it->second;
+
+		Point3 A = map->getPoint (l.bpid),
+			B = map->getPoint (l.fpid);
+		int u1, v1, u2, v2;
+		if (camera->project (A, u1, v1, w, h)==true and camera->project(B, u2, v2)==true) {
+			Point2 pj1 (u1, h-v1), pj2 (u2, h-v2);
+			cv::circle (proj, cv::Point2i(pj1.x(), pj1.y()), 2, 255);
+			cv::circle (proj, cv::Point2i(pj2.x(), pj2.y()), 2, 255);
+			cv::line (proj, cv::Point2i(pj1.x(),pj1.y()), cv::Point2i(pj2.x(),pj2.y()), CV_RGB(255,255,255));
+		}
 	}
 
 	cv::imwrite ("/tmp/debugprojection2.png", proj);
 }
 
 
-void projectAllPoints (Point3 &p0, Quaternion &o0, Camera::CameraIntrinsic &camera, VectorMap *map, int w, int h)
+bool projectPoint (Camera *camera, Point3 &src, Point3 &pointInCam, Point2 &res, int width, int height)
 {
-	vector<Point2> result;
-
-	tf::Vector3 ptf0 (p0.x(), p0.y(), p0.z());
-	tf::Quaternion otf0 (o0.x(), o0.y(), o0.z(), o0.w());
-	tf::Transform tfs (otf0, ptf0);
-
-	double zoom_x = (double)w / (double)camera.wi,
-		zoom_y = (double)h / (double)camera.wh;
-
-	for (int i=1; i<=map->points.size(); i++) {
-		Point3 p3 = map->getPoint (i);
-		tf::Vector3 ptf (p3.x(), p3.y(), p3.z());
-		tf::Vector3 ptfdst = tfs (ptf);
-
-		Point2 pointScr (
-			ptfdst.x()*camera.fx*zoom_x / ptfdst.z() + camera.cx*zoom_x,
-			ptfdst.y()*camera.fy*zoom_y / ptfdst.z() + camera.cy*zoom_y);
-
-		result.push_back (pointScr);
+	pointInCam = camera->transform (src);
+	int u, v;
+	if (camera->project (src, u, v, width, height)==true) {
+		res = Point2 (u, height-v);
+		return true;
 	}
-
-	cv::Mat proj = cv::Mat::zeros (480, 640, CV_8UC1);
-	for (int i=0; i<result.size(); i++) {
-		Point2 p1 = result[i];
-		if (p1.x() >= 0 and p1.x() <= 640 and p1.y()>=0 and p1.y()<=480) {
-			int u = p1.x(), v = p1.y();
-			//proj.at<uint8_t> (v,u) = 255;
-			cv::circle (proj, cv::Point2i(u,v), 2, 255);
-		}
-	}
-
-	cv::imwrite ("/tmp/debugprojection2.png", proj);
+	else return false;
 }
 
 
 void PointSolver::projectLines ()
 {
-	Camera::CameraIntrinsic camera = glcanvas->getCamera()->getCameraParam();
+	Camera *camera = glcanvas->getCamera();
+	Camera::CameraIntrinsic &cameraParam = camera->getCameraParam();
 
-	projectAllPoints (glcanvas->getCamera(), map, 640, 480);
-//	projectAllPoints (position0, orientation0, camera, map, width, height);
+	projectAllPoints (glcanvas->getCamera(), map, width, height);
 
 	visibleLines.clear();
-
-	tf::Vector3 ptf0 (position0.x(), position0.y(), position0.z());
-	tf::Quaternion otf0 (orientation0.x(), orientation0.y(), orientation0.z(), orientation0.w());
-	tf::Transform cameraEx (otf0, ptf0);
-
-	double zoom_x = (double)width / (double)camera.wi,
-		zoom_y = (double)height / (double)camera.wh;
-
-	camera.fx *= zoom_x;
-	camera.fy *= zoom_y;
-	camera.cx *= zoom_x;
-	camera.cy *= zoom_y;
 
 	for(std::map<int, Line>::iterator it=map->lines.begin(); it!=map->lines.end(); it++) {
 		Line l = it->second;
 
-		// Projection from 3D to camera image plane
 		Point3 A = map->getPoint (l.bpid),
 			B = map->getPoint (l.fpid);
-		tf::Vector3 PA (A.x(), A.y(), A.z()),
-			PB (B.x(), B.y(), B.z());
-		tf::Vector3 PAcam = cameraEx (PA),
-			PBcam = cameraEx (PB);
 
-		Point2 PAim (
-			PAcam.x()*camera.fx/PAcam.z() + camera.cx,
-			PAcam.y()*camera.fy/PAcam.z() + camera.cy
-		);
-		Point2 PBim (
-			PBcam.x()*camera.fx/PBcam.z() + camera.cx,
-			PBcam.y()*camera.fy/PBcam.z() + camera.cy
-		);
+		Point3 PAcam, PBcam;
+		Point2 PAim, PBim;
 
-		// filter this line. We check for visibility in screen
-		if (PAcam.z()<0 and PBcam.z()<0) {
-			continue;
-		}
-		if (PAcam.z()>farPlane and PBcam.z()>farPlane) {
-			continue;
-		}
-		if ((PAim.x()<0 or PAim.x()>width or PAim.y()<0 or PAim.y()>width) and
-			(PBim.x()<0 or PBim.x()>width or PBim.y()<0 or PBim.y()>width)) {
+		if (projectPoint (camera, A, PAcam, PAim, width, height)==false or
+			projectPoint (camera, B, PBcam, PBim, width, height)==false
+		) {
 			continue;
 		}
 
@@ -274,13 +212,11 @@ void PointSolver::projectLines ()
 		lix.A = P1; lix.B = P2;
 		lix.mapLid = l.lid;
 
-		Point3 _PAcam_ (PAcam.x(), PAcam.y(), PAcam.z());
-		Point3 _PBcam_ (PBcam.x(), PBcam.y(), PBcam.z());
-		computeProjectionJacobian (position0, orientation0, A, _PAcam_, PAim,
-				camera.fx, camera.fy, camera.cx, camera.cy,
+		computeProjectionJacobian (position0, orientation0, A, PAcam, PAim,
+				cameraParam.fx, cameraParam.fy, cameraParam.cx, cameraParam.cy,
 				P1.jacobian);
-		computeProjectionJacobian (position0, orientation0, B, _PBcam_, PBim,
-				camera.fx, camera.fy, camera.cx, camera.cy,
+		computeProjectionJacobian (position0, orientation0, B, PBcam, PBim,
+				cameraParam.fx, cameraParam.fy, cameraParam.cx, cameraParam.cy,
 				P2.jacobian);
 
 		visibleLines.push_back (lix);
