@@ -77,12 +77,13 @@ private:
 
 	void prepareImage ();
 	void projectLines ();
-
 	void pairPointsWithLines ();
-
 	void prepareMatrices ();
+	void solveForCorrection ();
 
+	// for debugging only
 	void debugProjection (vector<PointSolver::LineSegment2D> &projResult);
+	void debugPointLinePair ();
 
 	// solution matrices
 	Eigen::MatrixXd Jac;

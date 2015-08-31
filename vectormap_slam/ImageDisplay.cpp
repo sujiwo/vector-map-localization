@@ -134,9 +134,9 @@ void ImageDisplay::updateImage (const cv::Mat &src)
 
 	cv::resize (src, cameraImage, cameraImage.size(), 0, 0);
 	cv::cvtColor(cameraImage, grayImage, CV_RGB2GRAY);
-	cv::bitwise_and (grayImage, mask, grayImage);
 
 	imagePipeline (grayImage, processedGrayImage);
+	cv::bitwise_and (processedGrayImage, mask, processedGrayImage);
 }
 
 

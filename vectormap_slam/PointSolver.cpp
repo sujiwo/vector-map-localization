@@ -11,9 +11,12 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include "debug.h"
 
 
 using std::string;
+using std::cout;
+using std::fstream;
 const float farPlane = 50.0;
 
 
@@ -21,11 +24,7 @@ PointSolver::PointSolver (VectorMap *src, RenderWidget *gl, int w, int h) :
 	map (src),
 	glcanvas (gl),
 	width (w), height (h)
-{
-	// re-create camera parameters
-	// There may be differences with calculated camera matrix in Camera.cpp
-	Camera::CameraIntrinsic &cameraParams = glcanvas->getCamera()->getCameraParam();
-}
+{}
 
 
 void PointSolver::solve (cv::Mat *processedInputImage, Point3 &startPosition, Quaternion &startOrientation)
@@ -39,7 +38,24 @@ void PointSolver::solve (cv::Mat *processedInputImage, Point3 &startPosition, Qu
 	projectLines ();
 	debugProjection (visibleLines);
 	pairPointsWithLines ();
+	debugPointLinePair ();
+
 	prepareMatrices ();
+//	solveForCorrection ();
+//
+//	cout << "Before: " << std::endl;
+//	cout << startPosition << std::endl;
+//
+//	startPosition.x() -= Pcorrect[0];
+//	startPosition.y() -= Pcorrect[1];
+//	startPosition.z() -= Pcorrect[2];
+//	startOrientation.x() -= Pcorrect[3];
+//	startOrientation.y() -= Pcorrect[4];
+//	startOrientation.z() -= Pcorrect[5];
+//	startOrientation.w() -= Pcorrect[6];
+//
+//	cout << "After: " << std::endl;
+//	cout << Pcorrect << std::endl;
 }
 
 
@@ -65,18 +81,17 @@ void PointSolver::prepareImage ()
 
 void PointSolver::debugProjection (vector<PointSolver::LineSegment2D> &projResult)
 {
-	std::fstream dumpline;
-	dumpline.open ("/tmp/dumpl.txt", std::fstream::out);
+	fstream dumpline;
+	dumpline.open ("/tmp/dumpline.txt", std::fstream::out);
 
 	cv::Mat proj = cv::Mat::zeros (height, width, CV_8UC1);
 	for (int i=0; i<projResult.size(); i++) {
 		Point2 p1 = projResult[i].A.coord,
 				p2 = projResult[i].B.coord;
 
-		cv::circle (proj, cv::Point2i(p1.x(), p1.y()), 2, 255);
-		cv::circle (proj, cv::Point2i(p2.x(), p2.y()), 2, 255);
+//		cv::circle (proj, cv::Point2i(p1.x(), p1.y()), 2, 255);
+//		cv::circle (proj, cv::Point2i(p2.x(), p2.y()), 2, 255);
 		cv::line (proj, cv::Point2i(p1.x(),p1.y()), cv::Point2i(p2.x(),p2.y()), CV_RGB(255,255,255));
-		// XXX: dump these line segments and plot in opencv
 		dumpline << p1.x() << "," << p1.y() << "," << p2.x() << "," << p2.y() << "," << projResult[i].mapLid << std::endl;
 	}
 
@@ -184,7 +199,7 @@ void PointSolver::projectLines ()
 	Camera *camera = glcanvas->getCamera();
 	Camera::CameraIntrinsic &cameraParam = camera->getCameraParam();
 
-	projectAllPoints (glcanvas->getCamera(), map, width, height);
+//	projectAllPoints (glcanvas->getCamera(), map, width, height);
 
 	visibleLines.clear();
 
@@ -268,7 +283,7 @@ pscalar PointSolver::LineSegment2D::errorJacobian (Point2 &P, pscalar *jm)
 }
 
 
-void PointSolver::prepareMatrices()
+void PointSolver::prepareMatrices ()
 {
 	Jac = Eigen::MatrixXd (imagePoints.size(), 7);
 	Pcorrect = Eigen::VectorXd (7);
@@ -307,4 +322,28 @@ void PointSolver::pairPointsWithLines()
 			}
 		}
 	}
+}
+
+
+void PointSolver::solveForCorrection ()
+{
+	Eigen::MatrixXd jat = Jac.transpose() * Jac;
+	Eigen::VectorXd jae = Jac.transpose() * pointErrs;
+	Pcorrect = jat.colPivHouseholderQr().solve (jae);
+}
+
+
+void PointSolver::debugPointLinePair ()
+{
+	fstream dumpPoint;
+	dumpPoint.open ("/tmp/dumppoint.txt", fstream::out);
+
+	for (int i=0; i<imagePoints.size(); i++) {
+		ImagePoint &pixel = imagePoints[i];
+
+		//debug ("%d,%f,%f,%d,%f", i, pixel.px, pixel.py, pixel.nearestLine, pixel.lineDistance);
+		dumpPoint << i << "," << pixel.px << "," << pixel.py << "," << pixel.nearestLine << "," << pixel.lineDistance << std::endl;
+	}
+
+	dumpPoint.close ();
 }
