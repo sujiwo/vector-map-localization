@@ -18,7 +18,23 @@ PointSolver2::PointSolver2 (vector<ModelLine> &modelIn, Camera *c, int w, int h)
 
 void PointSolver2::solve (cv::Mat &inputImage, Point3 &startPos, Quaternion &startOrientation)
 {
+	assert (inputImage.type() == CV_8UC1);
+
 	pos = startPos;
 	ori = startOrientation;
 	image = inputImage;
+
+
+}
+
+
+void PointSolver2::projectLines()
+{
+	visibleLines.clear();
+
+	for (int lid=0; lid<model.size(); lid++) {
+		ModelLine &line = model[lid];
+
+
+	}
 }
