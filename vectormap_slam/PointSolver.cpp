@@ -42,15 +42,15 @@ void PointSolver::solve (cv::Mat *processedInputImage, Point3 &startPosition, Qu
 	prepareMatrices ();
 	solveForCorrection ();
 
-	startPosition.x() -= Pcorrect[0];
-	startPosition.y() -= Pcorrect[1];
-	startPosition.z() -= Pcorrect[2];
-	startOrientation.x() -= Pcorrect[3];
-	startOrientation.y() -= Pcorrect[4];
-	startOrientation.z() -= Pcorrect[5];
-	startOrientation.w() -= Pcorrect[6];
-
-	cout << Pcorrect << std::endl;
+//	startPosition.x() -= Pcorrect[0];
+//	startPosition.y() -= Pcorrect[1];
+//	startPosition.z() -= Pcorrect[2];
+//	startOrientation.x() -= Pcorrect[3];
+//	startOrientation.y() -= Pcorrect[4];
+//	startOrientation.z() -= Pcorrect[5];
+//	startOrientation.w() -= Pcorrect[6];
+//
+//	cout << Pcorrect << std::endl;
 }
 
 
@@ -271,7 +271,7 @@ void PointSolver::prepareMatrices ()
 		LineSegment2D &line = visibleLines[imagePoints[ip].nearestLine];
 		line.errorJacobian(curpt, jacobianPt);
 		for (int n=0; n<7; n++) {
-			Jac(ip, n) = jacobianPt[7];
+			Jac(ip, n) = jacobianPt[n];
 		}
 	}
 }
@@ -305,7 +305,7 @@ void PointSolver::prepareImage ()
 					}
 				}
 
-				if (pt.lineDistance < 10000.0) {
+				if (pt.lineDistance < 4000.0) {
 					imagePoints.push_back (pt);
 				}
 			}
@@ -319,6 +319,7 @@ void PointSolver::solveForCorrection ()
 	Eigen::MatrixXd jat = Jac.transpose() * Jac;
 	Eigen::VectorXd jae = Jac.transpose() * pointErrs;
 	Pcorrect = jat.colPivHouseholderQr().solve (jae);
+	std::cout << Pcorrect << std::endl;
 }
 
 
