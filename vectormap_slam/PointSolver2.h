@@ -70,8 +70,8 @@ public:
 protected:
 	int width, height;
 	Camera *camera;
-	Point3 pos;
-	Quaternion ori;
+	Point3 position0;
+	Quaternion orientation0;
 	cv::Mat image;
 	vector<ModelLine> model;
 	vector<LineSegment2D> visibleLines;
@@ -80,6 +80,12 @@ protected:
 	void projectLines ();
 	void prepareImage ();
 	void prepareMatrices ();
+	void solveForCorrection ();
+
+	// solution matrices
+	Eigen::MatrixXd Jac;
+	Eigen::VectorXd Pcorrect, pointErrs;
+
 };
 
 #endif /* _POINTSOLVER2_H_ */
