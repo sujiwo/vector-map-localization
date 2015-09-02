@@ -12,6 +12,7 @@
 #include <iostream>
 #include <cstdio>
 #include <boost/date_time/posix_time/posix_time.hpp>
+#include "Math.h"
 
 
 #ifdef GLDEBUG
@@ -27,6 +28,18 @@ inline void debug (const char *strfmt, ...)
 	vprintf (strfmt, args);
 	va_end (args);
 	fprintf (stdout, "\n");
+}
+
+
+inline void debug (const Point3 &p)
+{
+	printf ("(%f, %f, %f)", p.x(), p.y(), p.z());
+}
+
+
+inline void debug (const Quaternion &q)
+{
+	printf ("(x=%f, y=%f, z=%f, w=%f)", q.x(), q.y(), q.z(), q.w());
 }
 
 

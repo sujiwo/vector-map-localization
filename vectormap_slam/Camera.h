@@ -86,6 +86,8 @@ public:
 
 	CameraIntrinsic &getCameraParam () { return cameraParams; }
 
+	void getPose (Point3 &pos, Quaternion &orientation);
+
 
 private:
 	Point3 currentPosition;

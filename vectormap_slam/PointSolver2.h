@@ -21,12 +21,13 @@ using std::vector;
 
 struct ImagePoint {
 	Point2 coord;
-	int lineId;
+	int nearestLine;
 	pscalar lineDistance;
 };
 
 struct ModelLine {
 	Point3 p1, p2;
+	ModelLine (Point3 A, Point3 B) {p1=A, p2=B;}
 };
 
 struct ProjectedPoint {
@@ -61,6 +62,11 @@ public:
 
 	void solve (cv::Mat &inputImage, Point3 &startPos, Quaternion &startOrientation);
 
+	// for debugging purposes
+	void debugProjection (const char *imageFilename);
+
+	static void projectModel (cv::Mat &outputImage, vector<ModelLine> &m, Camera *camera, int w, int h);
+
 protected:
 	int width, height;
 	Camera *camera;
@@ -69,8 +75,11 @@ protected:
 	cv::Mat image;
 	vector<ModelLine> model;
 	vector<LineSegment2D> visibleLines;
+	vector<ImagePoint> ipoints;
 
 	void projectLines ();
+	void prepareImage ();
+	void prepareMatrices ();
 };
 
 #endif /* _POINTSOLVER2_H_ */

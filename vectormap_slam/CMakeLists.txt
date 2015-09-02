@@ -132,3 +132,18 @@ target_link_libraries (
 		${QT_LIBRARIES}
 		${OPENGL_LIBRARIES}
 )
+
+
+add_executable (
+	solvertest
+		solvertest.cpp
+		PointSolver2.cpp
+		Camera.cpp
+)
+
+
+target_link_libraries (
+	solvertest
+		${OpenCV_LIBRARIES}
+		boost_system
+)

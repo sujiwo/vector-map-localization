@@ -59,11 +59,12 @@ void Camera::lookAt (const Point3 &eyePos, const Point3 &centerOfView, const Vec
 void Camera::lookAt (const Quaternion &orientation, const Point3 &position)
 {
 	viewMatrix = Matrix4::Identity();
-	Quaternion orin;
-	orin = orientation * Eigen::Quaternionf( Eigen::AngleAxisf(degreeToRadian(180), Eigen::Vector3f::UnitX()) );
-	orin.normalize();
-
-	viewMatrix.block<3,3> (0,0) = orin.toRotationMatrix().transpose();
+//	Quaternion orin;
+//	orin = orientation * Eigen::Quaternionf( Eigen::AngleAxisf(degreeToRadian(180), Eigen::Vector3f::UnitX()) );
+//	orin.normalize();
+//
+//	viewMatrix.block<3,3> (0,0) = orin.toRotationMatrix().transpose();
+	viewMatrix.block<3,3> (0,0) = orientation.toRotationMatrix();
 	viewMatrix.block<3,1> (0,3) = viewMatrix.block<3,3> (0,0) * (-position);
 
 	currentPosition = position;
@@ -185,6 +186,17 @@ bool Camera::project (const Point3 &pt, int &u, int &v, int reqImageWidth, int r
 	}
 
 	return true;
+}
+
+
+void Camera::getPose(Point3 &position, Quaternion &orientation)
+{
+	Matrix3 rot = viewMatrix.block<3,3> (0,0);
+	orientation = Quaternion (rot);
+	orientation.normalize();
+	Vector3 v = viewMatrix.block<3,1> (0,3);
+
+	position = -rot.transpose() * (v);
 }
 
 
