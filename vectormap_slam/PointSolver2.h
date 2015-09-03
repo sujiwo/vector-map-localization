@@ -88,4 +88,9 @@ protected:
 
 };
 
+
+cv::Mat perspective (float fx, float fy, float cx, float cy, int width, int height);
+cv::Mat perspective (float f, int width, int height);
+
+
 #endif /* _POINTSOLVER2_H_ */

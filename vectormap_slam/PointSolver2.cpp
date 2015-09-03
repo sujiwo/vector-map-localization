@@ -49,8 +49,8 @@ void projectPoint (Point3 &src, Point3 eyePos, Quaternion &orientation, Point2 &
 
 
 void computeProjectionJacobian (
-	Point3 &t,			// Camera center coordinate
-	Quaternion &q,		// Camera orientation
+	Point3 &t,				// Camera center coordinate
+	Quaternion &q,			// Camera orientation
 	Point3 &point,			// Original point position
 	Point2 &pim,			// Point in image
 	float fx,

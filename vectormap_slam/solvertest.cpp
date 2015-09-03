@@ -53,6 +53,7 @@ int main (int argc, char **argv)
 //	PointSolver2::projectModel(timage, model, &camera, 640, 480);
 //	cv::imwrite ("/tmp/modelp.png", timage);
 
+	std::cout << camera.getProjectionMatrix() << std::endl;
 
 //	Point3 eyePos;
 //	Quaternion eyeDir;
