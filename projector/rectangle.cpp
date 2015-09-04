@@ -47,9 +47,18 @@ int main (int argc, char **argv)
 		Point3(-0.5, -0.5, 2),
 		Point3(0.5, 0.5, -2),
 		Vector3(0, 1, 0));
+//	scene.getCamera()->lookAt (
+//		Point3(0.5, 0.5, 2),
+//		Point3(0.5, 0.5, -2),
+//		Vector3(0, 1, 0));
+
 	scene.getCamera()->perspective (45.0,
 		(float)WIDTH / (float)HEIGHT,
 		1.0, 100);
+	std::cout << "===projection===\n";
+	std::cout << scene.getCamera()->getProjectionMatrix() << std::endl;
+	std::cout << "===view===\n";
+	std::cout << scene.getCamera()->getViewMatrix() << std::endl;
 
 	while (true) {
 		scene.update();
