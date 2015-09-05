@@ -3,12 +3,19 @@ import numpy as np
 import math
 import cv2
 
+# rectangle = np.array([
+#     [0, 0, -2],
+#     [1, 0, -2],
+#     [1, 1, -2],
+#     [0, 1, -2]
+#     ])
 rectangle = np.array([
     [0, 0, -2],
     [1, 0, -2],
     [1, 1, -2],
     [0, 1, -2]
     ])
+
 
 
 def normalize (vsrc):
@@ -108,10 +115,34 @@ def transform (point3d, viewMat):
 
 # XXX: Unfinished !
 def drawLineList (objectLines, image, viewMat, projMat):
-    lineset = []
+    
+    def drawLine (p1, p2):
+        p1p = project (p1, viewMat, projMat)
+        p2p = project (p2, viewMat, projMat)
+        (u1, v1) = int(p1p[0]), int(p1p[1])
+        (u2, v2) = int(p2p[0]), int(p2p[1])
+        cv2.circle (image, (u1, v1), 2, 255)
+        cv2.circle (image, (u2, v2), 2, 255)
+        cv2.line (image, (u1,v1), (u2,v2), 255)
+    
     for ip in range (len(objectLines)-1) :
-        pass
-        
+        drawLine (objectLines[ip], objectLines[ip+1])
+    drawLine (objectLines[len(objectLines)-1], objectLines[0])
+    
+    
+def drawPoints (object, image, viewMat, projMat):
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    
+    i = 0
+    for point3d in object :
+        pcam = transform (point3d, viewmat)
+        pprj = project (point3d, viewmat, projmat)
+        point2 = pprj[0:2]
+        (u,v) = int(point2[0]), int(point2[1])
+        cv2.circle(image, (u,v), 3, 255)
+        cv2.putText(image, str(i), (u,v), font, 1, 255)
+        i += 1
+
 
 
 if __name__ == '__main__' :
@@ -121,16 +152,5 @@ if __name__ == '__main__' :
     projmat = perspective3(45.0, 640, 480)
     
     image = np.zeros ((480,640), dtype=np.uint8)
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    
-    i = 0
-    for point3d in rectangle :
-        pcam = transform (point3d, viewmat)
-        pprj = project (point3d, viewmat, projmat)
-        point2 = pprj[0:2]
-        (u,v) = int(point2[0]), int(point2[1])
-        cv2.circle(image, (u,v), 3, 255)
-        cv2.putText(image, str(i), (u,v), font, 1, 255)
-        i += 1
-    
+    drawLineList(rectangle, image, viewmat, projmat)
     cv2.imwrite("/tmp/box.png", image)

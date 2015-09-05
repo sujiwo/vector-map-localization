@@ -55,27 +55,47 @@ struct LineSegment2D {
 
 
 
+
 class PointSolver2
 {
 public:
-	PointSolver2 (vector<ModelLine> &m, Camera *c, int w, int h);
+
+	struct Projector {
+		Projector (pscalar fx, pscalar fy, pscalar cx, pscalar cy);
+		Projector (pscalar angleDegree, int width, int height);
+		Point2 operator * (Point4 &pointInCam);
+
+		pscalar fx () { return matrix(0, 0); }
+		pscalar fy () { return matrix(1, 1); }
+		pscalar cx () { return matrix(0, 2); }
+		pscalar cy () { return matrix(1, 2); }
+
+		Eigen::Matrix<pscalar, 3, 4> matrix;
+		pscalar width, height;
+	};
+
+	PointSolver2 (vector<ModelLine> &m, PointSolver2::Projector &proj);
 
 	void solve (cv::Mat &inputImage, Point3 &startPos, Quaternion &startOrientation);
 
 	// for debugging purposes
 	void debugProjection (const char *imageFilename);
 
-	static void projectModel (cv::Mat &outputImage, vector<ModelLine> &m, Camera *camera, int w, int h);
+	static void projectModel (cv::Mat &outputImage, vector<ModelLine> &m, PointSolver2::Projector &projector, Matrix4 &viewMatrix);
+	static void projectModel (cv::Mat &outputImage, vector<ModelLine> &m, PointSolver2::Projector &projector, Point3 &cameraPosition, Quaternion &cameraOrientation);
+	static void projectModel (cv::Mat &outputImage, vector<ModelLine> &m, PointSolver2::Projector &projector, Point3 &cameraPosition, Point3 &centerOfView, Vector3 &up);
+
 
 protected:
 	int width, height;
-	Camera *camera;
+	Projector projectionMatrix;
 	Point3 position0;
 	Quaternion orientation0;
 	cv::Mat image;
 	vector<ModelLine> model;
 	vector<LineSegment2D> visibleLines;
 	vector<ImagePoint> ipoints;
+	Matrix4 currentViewMatrix;
 
 	void projectLines ();
 	void prepareImage ();
@@ -89,8 +109,6 @@ protected:
 };
 
 
-cv::Mat perspective (float fx, float fy, float cx, float cy, int width, int height);
-cv::Mat perspective (float f, int width, int height);
 
 
 #endif /* _POINTSOLVER2_H_ */

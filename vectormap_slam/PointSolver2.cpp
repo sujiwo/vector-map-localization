@@ -6,12 +6,57 @@
  */
 
 #include "PointSolver2.h"
-#include "Camera.h"
 
 
-PointSolver2::PointSolver2 (vector<ModelLine> &modelIn, Camera *c, int w, int h) :
-	camera (c),
-	width (w), height (h),
+Point2 projectPoint (Point3 &src, Matrix4 &viewMatrix, PointSolver2::Projector &projectionMatrix)
+{
+	Point4 src4 (src.x(), src.y(), src.z(), 1);
+	Point4 pcam = viewMatrix * src4;
+	return projectionMatrix * pcam;
+}
+
+
+bool projectLine (Point3 &src1, Point3 &src2, Matrix4 &viewMatrix, PointSolver2::Projector &projectionMatrix, Point2 &lp1, Point2 &lp2)
+{
+	lp1 = projectPoint (src1, viewMatrix, projectionMatrix);
+	lp2 = projectPoint (src2, viewMatrix, projectionMatrix);
+
+	// decision for whether the projected points are outside
+}
+
+
+Matrix4 createViewMatrix (Point3 &cameraPosition, Quaternion &cameraOrientation)
+{
+	Matrix4 viewMatrix;
+	viewMatrix.block<3,3>(0,0) = cameraOrientation.toRotationMatrix();
+	viewMatrix.block<3,1>(0,3) = viewMatrix.block<3,3>(0,0) * (-cameraPosition);
+	viewMatrix (3,3) = 1;
+	return viewMatrix;
+}
+
+
+Matrix4 createViewMatrix (Point3 &cameraPosition, Point3 &centerOfView, Vector3 &_up)
+{
+	Matrix4 viewMatrix = Matrix4::Identity();
+	Vector3 up = _up;
+
+	Vector3 direction = centerOfView - cameraPosition;
+	direction.normalize();
+
+	up.normalize();
+	Vector3 side = direction.cross(up);
+	Vector3 Utrue = side.cross (direction);
+
+	viewMatrix.block<1,3> (0, 0) = side;
+	viewMatrix.block<1,3> (1, 0) = Utrue;
+	viewMatrix.block<1,3> (2, 0) = -direction;
+	viewMatrix.block<3,1> (0, 3) = -cameraPosition;
+	return viewMatrix;
+}
+
+
+PointSolver2::PointSolver2 (vector<ModelLine> &modelIn, PointSolver2::Projector &proj) :
+	projectionMatrix (proj),
 	model(modelIn)
 {}
 
@@ -23,28 +68,12 @@ void PointSolver2::solve (cv::Mat &inputImage, Point3 &startPos, Quaternion &sta
 	position0 = startPos;
 	orientation0 = startOrientation;
 	image = inputImage;
+	currentViewMatrix = createViewMatrix (startPos, startOrientation);
 
 	projectLines ();
 	prepareImage ();
 	prepareMatrices ();
 	solveForCorrection ();
-}
-
-
-bool projectPoint (Camera *camera, Point3 &src, Point2 &res, int width, int height)
-{
-	int u, v;
-	if (camera->project (src, u, v, width, height)==true) {
-		res = Point2 (u, height-v);
-		return true;
-	}
-	else return false;
-}
-
-
-void projectPoint (Point3 &src, Point3 eyePos, Quaternion &orientation, Point2 &res, float fx, float fy, float cx, float cy, int width=0, int height=0)
-{
-
 }
 
 
@@ -108,26 +137,22 @@ void computeProjectionJacobian (
 void PointSolver2::projectLines()
 {
 	visibleLines.clear();
-	Camera::CameraIntrinsic param = camera->getCameraParam();
 
 	for (int lid=0; lid<model.size(); lid++) {
 		ModelLine &line = model[lid];
 
 		ProjectedPoint P1, P2;
-		if (projectPoint (camera, line.p1, P1.coord, width, height)==false or
-			projectPoint (camera, line.p2, P2.coord, width, height)==false) {
-			continue;
-		}
+		projectLine (line.p1, line.p2, currentViewMatrix, projectionMatrix, P1.coord, P2.coord);
 
 		LineSegment2D vLine;
 		vLine.A = P1, vLine.B = P2;
 		vLine.modelLid = lid;
 
 		computeProjectionJacobian (position0, orientation0, line.p1, vLine.A.coord,
-				param.fx, param.fy, param.cx, param.cy,
+				projectionMatrix.fx(), projectionMatrix.fy(), projectionMatrix.cx(), projectionMatrix.cy(),
 				P1.jacobian);
 		computeProjectionJacobian (position0, orientation0, line.p2, vLine.B.coord,
-				param.fx, param.fy, param.cx, param.cy,
+				projectionMatrix.fx(), projectionMatrix.fy(), projectionMatrix.cx(), projectionMatrix.cy(),
 				P2.jacobian);
 
 		visibleLines.push_back (vLine);
@@ -171,18 +196,16 @@ void PointSolver2::prepareImage ()
 }
 
 
-void PointSolver2::projectModel(cv::Mat &output, vector<ModelLine> &model, Camera *camera, int width, int height)
+void PointSolver2::projectModel (cv::Mat &output, vector<ModelLine> &model, PointSolver2::Projector &projector, Matrix4 &viewMatrix)
 {
-	output = cv::Mat::zeros(height, width, CV_8UC1);
+	output = cv::Mat::zeros((int)projector.height, (int)projector.width, CV_8UC1);
 
 	for (int lid=0; lid<model.size(); lid++) {
 		ModelLine &line = model[lid];
 
 		ProjectedPoint P1, P2;
-		if (projectPoint (camera, line.p1, P1.coord, width, height)==false or
-			projectPoint (camera, line.p2, P2.coord, width, height)==false) {
-			continue;
-		}
+		P1.coord = projectPoint (line.p1, viewMatrix, projector);
+		P2.coord = projectPoint (line.p2, viewMatrix, projector);
 
 		cv::Point p1v (P1.coord.x(), P1.coord.y());
 		cv::Point p2v (P2.coord.x(), P2.coord.y());
@@ -190,6 +213,20 @@ void PointSolver2::projectModel(cv::Mat &output, vector<ModelLine> &model, Camer
 		cv::circle (output, p2v, 3, 255);
 		cv::line (output, p1v, p2v, 255);
 	}
+}
+
+
+void PointSolver2::projectModel(cv::Mat &output, vector<ModelLine> &model, PointSolver2::Projector &projector, Point3 &cameraPosition, Quaternion &cameraOrientation)
+{
+	Matrix4 viewMatrix = createViewMatrix (cameraPosition, cameraOrientation);
+	return PointSolver2::projectModel (output, model, projector, viewMatrix);
+}
+
+
+void PointSolver2::projectModel (cv::Mat &output, vector<ModelLine> &model, PointSolver2::Projector &projector, Point3 &cameraPosition, Point3 &centerOfView, Vector3 &_up)
+{
+	Matrix4 viewMatrix = createViewMatrix (cameraPosition, centerOfView, _up);
+	return PointSolver2::projectModel (output, model, projector, viewMatrix);
 }
 
 
@@ -270,4 +307,41 @@ void PointSolver2::solveForCorrection ()
 	Eigen::VectorXd jae = Jac.transpose() * pointErrs;
 	Pcorrect = jat.colPivHouseholderQr().solve (jae);
 //	std::cout << Pcorrect << std::endl;
+}
+
+
+PointSolver2::Projector::Projector (pscalar fx, pscalar fy, pscalar cx, pscalar cy)
+{
+	matrix = Eigen::Matrix<pscalar,3,4>::Zero ();
+	matrix(0, 0) = fx;
+	matrix(0, 2) = cx;
+	matrix(1, 1) = fy;
+	matrix(1, 2) = cy;
+	matrix(2, 2) = 1;
+}
+
+
+PointSolver2::Projector::Projector (pscalar angleDegree, int w, int h):
+	width (w), height(h)
+{
+	matrix = Eigen::Matrix<pscalar,3,4>::Zero ();
+	pscalar angle = (angleDegree/2) * M_PI/180.0;
+	pscalar cx = width / 2;
+	pscalar cy = height / 2;
+	pscalar fx = w / (2*tan(angle));
+	pscalar fy = fx;
+	//Projector (-fx, fy, cx, cy);
+
+	matrix(0, 0) = -fx;
+	matrix(0, 2) = cx;
+	matrix(1, 1) = fy;
+	matrix(1, 2) = cy;
+	matrix(2, 2) = 1;
+}
+
+
+Point2 PointSolver2::Projector::operator *(Point4 &pointCam)
+{
+	Point3 phom = this->matrix * pointCam;
+	return Point2 (phom.x(), phom.y()) / phom.z();
 }
