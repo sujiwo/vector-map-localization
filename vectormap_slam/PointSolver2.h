@@ -109,6 +109,8 @@ protected:
 };
 
 
+void poseFromViewMatrix (Matrix4 &viewMatrix, Point3 &position, Quaternion &orientation);
+Quaternion createQuaternionFromBasis (Vector3 direction, Vector3 up);
 
 
 #endif /* _POINTSOLVER2_H_ */

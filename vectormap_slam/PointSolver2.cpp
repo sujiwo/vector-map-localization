@@ -345,3 +345,17 @@ Point2 PointSolver2::Projector::operator *(Point4 &pointCam)
 	Point3 phom = this->matrix * pointCam;
 	return Point2 (phom.x(), phom.y()) / phom.z();
 }
+
+
+void poseFromViewMatrix (Matrix4 &viewMatrix, Point3 &position, Quaternion &orientation)
+{
+	Matrix3 rotMat = viewMatrix.block<3,3> (0, 0);
+	orientation = Quaternion (rotMat);
+	position = -rotMat.transpose() * viewMatrix.block<3,1> (0, 3);
+}
+
+
+Quaternion createQuaternionFromBasis (Vector3 direction, Vector3 up)
+{
+
+}
