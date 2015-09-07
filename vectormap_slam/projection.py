@@ -45,6 +45,43 @@ def quaternion2matrix (_q):
     return qmat
 
 
+def createPose (_eyePosition, _pointOfView, _up):
+    viewMat = lookAt2 (_eyePosition, _pointOfView, _up)
+    return createPoseFromViewMatrix(viewMat)
+
+    
+def createPoseFromViewMatrix (viewMat):
+    M = viewMat[0:3, 0:3]
+    trace = M.trace()
+    if trace > 0:
+        S = math.sqrt(trace + 1.0) * 2
+        qw = 0.25 * S
+        qx = (M[2,1] - M[1,2]) / S
+        qy = (M[0,2] - M[2,0]) / S
+        qz = (M[1,0] - M[0,1]) / S
+    elif ((M[0,0] > M[1,1]) and (M[0,0] > M[2,2])) :
+        S = math.sqrt (1.0 + M[0,0] - M[1,1] - M[2,2]) * 2
+        qw = (M[2,1] - M[1,2]) / S
+        qx = 0.25 * S
+        qy = (M[0,1] + M[1,0]) / S
+        qz = (M[0,2] + M[2,0]) / S
+    elif (M[1,1] > M[2,2]) :
+        S = math.sqrt (1.0 + M[1,1] - M[0,0] - M[2,2]) * 2
+        qw = (M[0,2] - M[2,0]) / S
+        qx = (M[0,1] + M[1,0]) / S
+        qy = 0.25 * S
+        qz = (M[1,2] + M[2,1]) / S
+    else :
+        S = math.sqrt (1.0 + M[2,2] - M[0,0] - M[1,1]) * 2
+        qw = (M[1,0] - M[0,1]) / S;
+        qx = (M[0,2] + M[2,0]) / S;
+        qy = (M[1,2] + M[2,1]) / S;
+        qz = 0.25 * S
+    orientation = (qw, qx, qy, qz)
+    position = -M.transpose() .dot( viewMat[0:3, 3] )
+    return position, orientation
+
+
 def perspective1 (fx, fy, cx, cy):
     projMat = np.array( \
         [[fx,  0,  cx,  0],
@@ -121,8 +158,8 @@ def drawLineList (objectLines, image, viewMat, projMat):
         p2p = project (p2, viewMat, projMat)
         (u1, v1) = int(p1p[0]), int(p1p[1])
         (u2, v2) = int(p2p[0]), int(p2p[1])
-        cv2.circle (image, (u1, v1), 2, 255)
-        cv2.circle (image, (u2, v2), 2, 255)
+#         cv2.circle (image, (u1, v1), 2, 255)
+#         cv2.circle (image, (u2, v2), 2, 255)
         cv2.line (image, (u1,v1), (u2,v2), 255)
     
     for ip in range (len(objectLines)-1) :
@@ -147,10 +184,13 @@ def drawPoints (object, image, viewMat, projMat):
 
 if __name__ == '__main__' :
     viewmat = lookAt2 ([-0.5, -0.5, 2], [0.5, 0.5, -2], [0, 1, 0])
-#     viewmat = lookAt2 ([-0.5, -0.5, 2], [0.5, 0.5, -2], [0, 1, 0])
+#     viewmat = lookAt2 ([0.5, 0.5, 2], [0.5, 0.5, -2], [0, 1, 0])
 #     viewmat = lookAt1((-0.915031, -0.943627, 1.656656), (0.985495, -0.117826, 0.121295, -0.014295))
+    (position, orientation) = createPoseFromViewMatrix(viewmat)
     projmat = perspective3(45.0, 640, 480)
     
     image = np.zeros ((480,640), dtype=np.uint8)
     drawLineList(rectangle, image, viewmat, projmat)
     cv2.imwrite("/tmp/box.png", image)
+    
+    pass

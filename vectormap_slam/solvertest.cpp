@@ -39,23 +39,24 @@ int main (int argc, char **argv)
 {
 	buildModel (model, rectangle, 4);
 
-	// XXX: Still blank image
 //	Point3 eyePos (-0.915031, -0.943627, 1.656656);
 //	Quaternion eyeDir (0.985495, -0.117826, 0.121295, -0.014295);
-	Point3 eyePos (-0.5, -0.5, 2),
+	Point3 eyePos (0.5, 0.5, 2),
 		centerOfView (0.5, 0.5, -2);
 	Vector3 up (0, 1, 0);
 	PointSolver2::Projector projector (45.0, 640, 480);
-	std::cout << projector.matrix << std::endl;
 
+	cv::Mat timage = cv::imread ("/tmp/test.png", CV_LOAD_IMAGE_GRAYSCALE);
 
-//	cv::Mat timage = cv::imread ("/tmp/test.png", CV_LOAD_IMAGE_GRAYSCALE);
+	PointSolver2 solver (model, projector);
 
-//	PointSolver2 solver (model, projector);
+	// initial pose
+	Matrix4 vm = createViewMatrix (eyePos, centerOfView, up);
+	Quaternion eyeDir;
+	poseFromViewMatrix (vm, eyePos, eyeDir);
+	solver.solve (timage, eyePos, eyeDir);
+
 	//solver.solve (timage, eyePos, eyeDir);
 
-	cv::Mat image;
-	PointSolver2::projectModel(image, model, projector, eyePos, centerOfView, up);
-	cv::imwrite ("/tmp/modelp.png", image);
 
 }

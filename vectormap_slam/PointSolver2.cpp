@@ -6,6 +6,7 @@
  */
 
 #include "PointSolver2.h"
+#include <cstdlib>
 
 
 Point2 projectPoint (Point3 &src, Matrix4 &viewMatrix, PointSolver2::Projector &projectionMatrix)
@@ -145,15 +146,15 @@ void PointSolver2::projectLines()
 		projectLine (line.p1, line.p2, currentViewMatrix, projectionMatrix, P1.coord, P2.coord);
 
 		LineSegment2D vLine;
-		vLine.A = P1, vLine.B = P2;
+		vLine.A.coord = P1.coord, vLine.B.coord = P2.coord;
 		vLine.modelLid = lid;
 
 		computeProjectionJacobian (position0, orientation0, line.p1, vLine.A.coord,
 				projectionMatrix.fx(), projectionMatrix.fy(), projectionMatrix.cx(), projectionMatrix.cy(),
-				P1.jacobian);
+				vLine.A.jacobian);
 		computeProjectionJacobian (position0, orientation0, line.p2, vLine.B.coord,
 				projectionMatrix.fx(), projectionMatrix.fy(), projectionMatrix.cx(), projectionMatrix.cy(),
-				P2.jacobian);
+				vLine.B.jacobian);
 
 		visibleLines.push_back (vLine);
 	}
@@ -249,7 +250,7 @@ void PointSolver2::prepareMatrices ()
 		}
 		continue;
 	}
-	std::cout << Jac << std::endl;
+//	std::cout << Jac << std::endl;
 }
 
 
@@ -306,7 +307,7 @@ void PointSolver2::solveForCorrection ()
 	Eigen::MatrixXd jat = Jac.transpose() * Jac;
 	Eigen::VectorXd jae = Jac.transpose() * pointErrs;
 	Pcorrect = jat.colPivHouseholderQr().solve (jae);
-//	std::cout << Pcorrect << std::endl;
+	std::cout << Pcorrect << std::endl;
 }
 
 
@@ -354,8 +355,3 @@ void poseFromViewMatrix (Matrix4 &viewMatrix, Point3 &position, Quaternion &orie
 	position = -rotMat.transpose() * viewMatrix.block<3,1> (0, 3);
 }
 
-
-Quaternion createQuaternionFromBasis (Vector3 direction, Vector3 up)
-{
-
-}
