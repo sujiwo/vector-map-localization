@@ -42,7 +42,7 @@ struct LineSegment2D {
 	int modelLid;
 
 	pscalar error (Point2 &p);
-	pscalar errorJacobian (Point2 &p, pscalar jacobianMat[7]);
+	void errorJacobian (Point2 &p, pscalar jacobianMat[7]);
 
 	pscalar lengthSquared ()
 	{ return (B.coord - A.coord).squaredNorm(); }
@@ -54,6 +54,38 @@ struct LineSegment2D {
 
 	Point2 center()
 	{ return (A.coord + B.coord) / 2; }
+
+	// Returns a point in this line which is nearest to a specified point
+	Point2 nearestTo (const Point2 &t);
+
+private:
+	void errorJacobian1 (
+		const float &px,
+		const float &py,
+		const float &p1x,
+		const float &p1y,
+		const float &p2x,
+		const float &p2y,
+		const float lsegmentsq,
+		float &dep1x, float &dep1y, float &dep2x, float &dep2y);
+	void errorJacobian2 (
+		const float &px,
+		const float &py,
+		const float &p1x,
+		const float &p1y,
+		const float &p2x,
+		const float &p2y,
+		const float lsegmentsq,
+		float &dep1x, float &dep1y, float &dep2x, float &dep2y);
+	void errorJacobian3 (
+		const float &px,
+		const float &py,
+		const float &p1x,
+		const float &p1y,
+		const float &p2x,
+		const float &p2y,
+		const float lsegmentsq,
+		float &dep1x, float &dep1y, float &dep2x, float &dep2y);
 };
 
 
@@ -83,6 +115,7 @@ public:
 
 	// for debugging purposes
 	void debugProjection (const char *imageFilename);
+	void debugPointPairing (const char *imgname);
 
 	static void projectModel (cv::Mat &outputImage, vector<ModelLine> &m, PointSolver2::Projector &projector, Matrix4 &viewMatrix);
 	static void projectModel (cv::Mat &outputImage, vector<ModelLine> &m, PointSolver2::Projector &projector, Point3 &cameraPosition, Quaternion &cameraOrientation);

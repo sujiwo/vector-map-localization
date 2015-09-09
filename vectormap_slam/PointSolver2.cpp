@@ -9,6 +9,13 @@
 #include <cstdlib>
 
 
+typedef cv::Vec3b Color3;
+
+
+inline cv::Point2f tocv (Point2 &p)
+{ return cv::Point2f (p.x(), p.y()); }
+
+
 Point2 projectPoint (Point3 &src, Matrix4 &viewMatrix, PointSolver2::Projector &projectionMatrix)
 {
 	Point4 src4 (src.x(), src.y(), src.z(), 1);
@@ -73,6 +80,8 @@ void PointSolver2::solve (cv::Mat &inputImage, Point3 &startPos, Quaternion &sta
 
 	projectLines ();
 	prepareImage ();
+//	debugPointPairing ("/tmp/debugpoint.png");
+
 	prepareMatrices ();
 	solveForCorrection ();
 }
@@ -250,6 +259,7 @@ void PointSolver2::prepareMatrices ()
 		}
 		continue;
 	}
+//	std::cout << pointErrs << std::endl;
 //	std::cout << Jac << std::endl;
 }
 
@@ -268,17 +278,46 @@ pscalar LineSegment2D::distanceSquared (Point2 &P)
 }
 
 
-pscalar LineSegment2D::errorJacobian (Point2 &P, pscalar *jm)
+Point2 LineSegment2D::nearestTo (const Point2 &P)
 {
-	pscalar lsegmentsq = this->lengthSquared();
+	Vector2 M = B.coord - A.coord;
+	pscalar t = M.dot(P-A.coord) / (M.squaredNorm());
 
-	pscalar dep1x, dep1y, dep2x, dep2y;
-	pscalar p1x = A.coord.x(),
-			p1y = A.coord.y(),
-			p2x = B.coord.x(),
-			p2y = B.coord.y(),
-			px = P.x(), py = P.y();
+	if (t<=0)
+		return A.coord;
+	else if (t>0 and t<1)
+		return A.coord + M*t;
+	else return B.coord;
+}
 
+
+void LineSegment2D::errorJacobian1 (
+	const float &px,
+	const float &py,
+	const float &p1x,
+	const float &p1y,
+	const float &p2x,
+	const float &p2y,
+	const float lsegmentsq,
+	float &dep1x, float &dep1y, float &dep2x, float &dep2y)
+{
+	dep1x = -2 * (px - p1x);
+	dep1y = -2 * (py - p1y);
+	dep2x = 0;
+	dep2y = 0;
+}
+
+
+void LineSegment2D::errorJacobian2 (
+		const float &px,
+		const float &py,
+		const float &p1x,
+		const float &p1y,
+		const float &p2x,
+		const float &p2y,
+		const float lsegmentsq,
+		float &dep1x, float &dep1y, float &dep2x, float &dep2y)
+{
 	dep1x = -2*(p2y-p1y)*
 		(p2x*py-p1x*py-p2y*px+p1y*px+p1x*p2y-p1y*p2x) *
 		(p2y*py-p1y*py+p2x*px-p1x*px-p2y*p2y+p1y*p2y-p2x*p2x+p1x*p2x) /
@@ -295,6 +334,46 @@ pscalar LineSegment2D::errorJacobian (Point2 &P, pscalar *jm)
 		(p2x*py-p1x*py-p2y*px+p1y*px+p1x*p2y-p1y*p2x)*
 		(p2y*py-p1y*py+p2x*px-p1x*px-p1y*p2y-p1x*p2x+p1y*p1y+p1x*p1x) /
 		(lsegmentsq * lsegmentsq);
+}
+
+
+void LineSegment2D::errorJacobian3 (
+	const float &px,
+	const float &py,
+	const float &p1x,
+	const float &p1y,
+	const float &p2x,
+	const float &p2y,
+	const float lsegmentsq,
+	float &dep1x, float &dep1y, float &dep2x, float &dep2y)
+{
+	dep1x = 0;
+	dep1y = 0;
+	dep2x = -2 * (px - p2x);
+	dep2y = -2 * (py - p2y);
+}
+
+
+void LineSegment2D::errorJacobian (Point2 &P, pscalar *jm)
+{
+	Vector2 M = B.coord - A.coord;
+	pscalar t = M.dot(P-A.coord) / (M.squaredNorm());
+
+	pscalar lsegmentsq = this->lengthSquared();
+
+	pscalar dep1x, dep1y, dep2x, dep2y;
+	pscalar p1x = A.coord.x(),
+			p1y = A.coord.y(),
+			p2x = B.coord.x(),
+			p2y = B.coord.y(),
+			px = P.x(), py = P.y();
+
+	if (t<=0)
+		errorJacobian1 (px, py, p1x, p1y, p2x, p2y, lsegmentsq, dep1x, dep1y, dep2x, dep2y);
+	else if (t>0 and t<1)
+		errorJacobian2 (px, py, p1x, p1y, p2x, p2y, lsegmentsq, dep1x, dep1y, dep2x, dep2y);
+	else
+		errorJacobian3 (px, py, p1x, p1y, p2x, p2y, lsegmentsq, dep1x, dep1y, dep2x, dep2y);
 
 	for (int i=0; i<7; i++) {
 		jm[i] = dep1x*A.jacobian[i][0] + dep1y*A.jacobian[i][1] + dep2x*B.jacobian[i][0] + dep2y*B.jacobian[i][1];
@@ -307,7 +386,7 @@ void PointSolver2::solveForCorrection ()
 	Eigen::MatrixXd jat = Jac.transpose() * Jac;
 	Eigen::VectorXd jae = Jac.transpose() * pointErrs;
 	Pcorrect = jat.colPivHouseholderQr().solve (jae);
-	std::cout << Pcorrect << std::endl;
+	std::cout << jat << std::endl;
 }
 
 
@@ -355,3 +434,25 @@ void poseFromViewMatrix (Matrix4 &viewMatrix, Point3 &position, Quaternion &orie
 	position = -rotMat.transpose() * viewMatrix.block<3,1> (0, 3);
 }
 
+
+void PointSolver2::debugPointPairing(const char *imgfilename)
+{
+	cv::Mat dbgImage;
+	dbgImage = cv::Mat::zeros (image.rows, image.cols, CV_8UC3);
+	Color3 white (255,255,255);
+
+	for (auto &line: visibleLines) {
+		cv::Point2f p1 = tocv (line.A.coord), p2 = tocv (line.B.coord);
+		cv::line(dbgImage, p1, p2, CV_RGB(120, 120, 120));
+	}
+
+	for (auto &p: ipoints) {
+		cv::Point2f pos = tocv (p.coord);
+		LineSegment2D &line = visibleLines[p.nearestLine];
+		Point2 lnear = line.nearestTo(p.coord);
+		cv::line (dbgImage, pos, tocv(lnear), CV_RGB(0, 80, 0));
+		dbgImage.at<Color3> (pos) = white;
+	}
+
+	cv::imwrite (imgfilename, dbgImage);
+}
