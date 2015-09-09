@@ -107,7 +107,22 @@ def perspective3 (fieldOfView, width, height):
     fy = fx
     return perspective1 (-fx, fy, cx, cy)
 
-# def perspective4 (fieldOfView, aspectRatio, ):
+
+# This function returns OpenGL-style projection matrix
+# ie. Normalized Device Coordinate
+def perspective4 (fieldOfView, aspectRatio, near, far):
+    projMat = np.zeros((4,4))
+    
+    fieldOfView = fieldOfView * math.pi / 180
+    d = 1 / math.tan(fieldOfView/2)
+
+    projMat[0,0] = d/aspectRatio
+    projMat[1,1] = d
+    projMat[2,2] = (near+far)/(near-far)
+    projMat[2,3] = 2*near*far/(near-far)
+    projMat[3,2] = -1
+    
+    return projMat
 
 
 def lookAt1 (position, orientation):
@@ -151,7 +166,7 @@ def transform (point3d, viewMat):
     return p3
 
 # XXX: Unfinished !
-def drawLineList (objectLines, image, viewMat, projMat):
+def drawLineList1 (objectLines, image, viewMat, projMat):
     
     def drawLine (p1, p2):
         p1p = project (p1, viewMat, projMat)
@@ -167,7 +182,7 @@ def drawLineList (objectLines, image, viewMat, projMat):
     drawLine (objectLines[len(objectLines)-1], objectLines[0])
     
     
-def drawPoints (object, image, viewMat, projMat):
+def drawPoints1 (object, image, viewMat, projMat):
     font = cv2.FONT_HERSHEY_SIMPLEX
     
     i = 0
@@ -186,11 +201,10 @@ if __name__ == '__main__' :
     viewmat = lookAt2 ([-0.5, -0.5, 2], [0.5, 0.5, -2], [0, 1, 0])
 #     viewmat = lookAt2 ([0.5, 0.5, 2], [0.5, 0.5, -2], [0, 1, 0])
 #     viewmat = lookAt1((-0.915031, -0.943627, 1.656656), (0.985495, -0.117826, 0.121295, -0.014295))
-    (position, orientation) = createPoseFromViewMatrix(viewmat)
-    projmat = perspective3(45.0, 640, 480)
+    projmat = perspective4(45.0, 1.333, 0.1, 100.0)
     
     image = np.zeros ((480,640), dtype=np.uint8)
-    drawLineList(rectangle, image, viewmat, projmat)
+    drawLineList1 (rectangle, image, viewmat, projmat)
     cv2.imwrite("/tmp/box.png", image)
     
     pass
