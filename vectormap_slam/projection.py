@@ -110,7 +110,7 @@ def perspective3 (fieldOfView, width, height):
 
 # This function returns OpenGL-style projection matrix
 # ie. Normalized Device Coordinate
-def perspective4 (fieldOfView, aspectRatio, near, far):
+def perspective4 (fieldOfView, aspectRatio, near=0.1, far=100.0):
     projMat = np.zeros((4,4))
     
     fieldOfView = fieldOfView * math.pi / 180
@@ -123,6 +123,30 @@ def perspective4 (fieldOfView, aspectRatio, near, far):
     projMat[3,2] = -1
     
     return projMat
+
+
+def perspective5 (fx, fy, cx, cy, width, height, near=0.1, far=100.0):
+    projMat = np.zeros((4,4))
+    
+    projMat [0,0] = 2.0*fx/width
+    projMat [1,1] = 2.0*fy/height
+    projMat [0,2] = 2.0*(0.5 - cx/width)
+    projMat [1,2] = 2.0*(cy/height - 0.5)
+    projMat [2,2] = -(far+near) / (far-near)
+    projMat [2,3] = -2*.0*far*near / (far-near)
+    projMat [3,2] = -1
+    
+    return projMat
+
+
+def perspective6 (fieldOfView, width, height):
+    fieldOfView = fieldOfView * math.pi / 180
+    fieldOfView /= 2
+    cx = width/2
+    cy = height/2
+    fx = width / (2*math.tan(fieldOfView))
+    fy = fx
+    return perspective5 (fx, fy, cx, cy, width, height)
 
 
 def lookAt1 (position, orientation):
@@ -151,12 +175,29 @@ def lookAt2 (_eyePosition, _pointOfView, _up) :
     viewMat [0:3, 3] = -eyePosition
     return viewMat
 
-def project (point3d, viewMat, projMat):
+def project1 (point3d, viewMat, projMat):
     point4d = np.zeros(4)
     point4d[0:3] = point3d
     point4d[3] = 1
     p2 = projMat.dot(viewMat.dot(point4d))
     return p2 / p2[2]
+
+
+def project2 (point3d, viewMat, projMat, width=0, height=0):
+    point4d = np.zeros(4)
+    point4d[0:3] = point3d
+    point4d[3] = 1
+    ps = projMat.dot(viewMat.dot(point4d))
+    ps = ps / ps[3]
+    if (width==0 and height==0) :
+        return ps[0:3]
+    else :
+        # Convert normalized device coordinate to screen coordinate
+        p2 = ps[0:2] / ps[2]
+        p2[0] = width * (1+p2[0]) / 2
+        p2[1] = height * (1-p2[1]) / 2
+        return p2
+        
 
 def transform (point3d, viewMat):
     point4d = np.zeros(4)
@@ -169,8 +210,8 @@ def transform (point3d, viewMat):
 def drawLineList1 (objectLines, image, viewMat, projMat):
     
     def drawLine (p1, p2):
-        p1p = project (p1, viewMat, projMat)
-        p2p = project (p2, viewMat, projMat)
+        p1p = project1 (p1, viewMat, projMat)
+        p2p = project1 (p2, viewMat, projMat)
         (u1, v1) = int(p1p[0]), int(p1p[1])
         (u2, v2) = int(p2p[0]), int(p2p[1])
 #         cv2.circle (image, (u1, v1), 2, 255)
@@ -188,7 +229,7 @@ def drawPoints1 (object, image, viewMat, projMat):
     i = 0
     for point3d in object :
         pcam = transform (point3d, viewmat)
-        pprj = project (point3d, viewmat, projmat)
+        pprj = project1 (point3d, viewmat, projmat)
         point2 = pprj[0:2]
         (u,v) = int(point2[0]), int(point2[1])
         cv2.circle(image, (u,v), 3, 255)
@@ -196,15 +237,31 @@ def drawPoints1 (object, image, viewMat, projMat):
         i += 1
 
 
+def drawPoints2 (object, image, viewMat, projMat):
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    width = image.shape[1]
+    height = image.shape[0]
+    
+    i = 0
+    for point3d in object :
+        pcam = transform (point3d, viewmat)
+        point2 = project2 (point3d, viewmat, projmat, width, height)
+        (u,v) = int (point2[0]) , int (point2[1])
+        cv2.circle(image, (u,v), 3, 255)
+        cv2.putText(image, str(i), (u,v), font, 1, 255)
+        i += 1
+
+
+
 
 if __name__ == '__main__' :
     viewmat = lookAt2 ([-0.5, -0.5, 2], [0.5, 0.5, -2], [0, 1, 0])
 #     viewmat = lookAt2 ([0.5, 0.5, 2], [0.5, 0.5, -2], [0, 1, 0])
 #     viewmat = lookAt1((-0.915031, -0.943627, 1.656656), (0.985495, -0.117826, 0.121295, -0.014295))
-    projmat = perspective4(45.0, 1.333, 0.1, 100.0)
-    
+    projmat = perspective6(45.0, 640, 480)
+#     projmat = perspective4 (45.0, 1.333)
     image = np.zeros ((480,640), dtype=np.uint8)
-    drawLineList1 (rectangle, image, viewmat, projmat)
-    cv2.imwrite("/tmp/box.png", image)
+    drawPoints2 (rectangle, image, viewmat, projmat)
+    cv2.imwrite ("/tmp/box2.png", image)
     
     pass

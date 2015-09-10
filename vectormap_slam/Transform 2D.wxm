@@ -1,0 +1,42 @@
+/* [wxMaxima batch file version 1] [ DO NOT EDIT BY HAND! ]*/
+/* [ Created with wxMaxima version 13.04.2 ] */
+
+/* [wxMaxima: input   start ] */
+A: [ax, ay, 1];
+B: [bx, by, 1];
+T: matrix(
+    [1,0,tx],
+    [0,1,ty],
+    [0,0,1]
+) . matrix(
+    [cos(t), -sin(t), 0],
+    [sin(t), cos(t), 0],
+    [0, 0, 1]
+) . matrix(
+    [1, 0, -tx],
+    [0, 1, -tx],
+    [0, 0, 1]
+);
+At: T . A;
+Bt: T . B;
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+P: [px,py,1];
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+Q: At + (Bt-At)*((P-At) . (Bt-At)) / ((Bt-At).(Bt-At));
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+e(At,Bt) := (P-Q) . (P-Q);
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+diff (e(At,Bt), tx);
+/* [wxMaxima: input   end   ] */
+
+
+/* Maxima can't load/batch files which end with a comment! */
+"Created with wxMaxima"$

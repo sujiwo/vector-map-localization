@@ -95,6 +95,7 @@ class PointSolver2
 {
 public:
 
+
 	struct Projector {
 		Projector (pscalar fx, pscalar fy, pscalar cx, pscalar cy);
 		Projector (pscalar angleDegree, int width, int height);
@@ -108,6 +109,12 @@ public:
 		Eigen::Matrix<pscalar, 3, 4> matrix;
 		pscalar width, height;
 	};
+
+
+	struct ProjectorNormalized : public Projector {
+
+	};
+
 
 	PointSolver2 (vector<ModelLine> &m, PointSolver2::Projector &proj);
 
