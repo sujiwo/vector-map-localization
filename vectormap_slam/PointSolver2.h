@@ -97,7 +97,7 @@ public:
 
 
 	struct Projector {
-		Projector (pscalar fx, pscalar fy, pscalar cx, pscalar cy);
+		Projector (pscalar fx, pscalar fy, pscalar cx, pscalar cy, int width, int height);
 		Projector (pscalar angleDegree, int width, int height);
 		Point2 operator * (Point4 &pointInCam);
 
@@ -106,8 +106,21 @@ public:
 		pscalar cx () { return matrix(0, 2); }
 		pscalar cy () { return matrix(1, 2); }
 
-		Eigen::Matrix<pscalar, 3, 4> matrix;
+//		Eigen::Matrix<pscalar, 3, 4> matrix;
+		Matrix4 matrix;
 		pscalar width, height;
+
+		inline Point2 ScreenToNormalized (const pscalar u, const pscalar v)
+		{ return Point2 (2*u/width - 1 , 1 - 2*v/height); }
+
+		inline Point2 ScreenToNormalized (const Point2& scr)
+		{ return ScreenToNormalized (scr.x(), scr.y()); }
+
+		inline Point2 NormalizedToScreen (const pscalar x, const pscalar y)
+		{ return Point2 (width*(x+1)/2, height*(1-y)/2); }
+
+		inline Point2 NormalizedToScreen (const Point2& nrm)
+		{ return NormalizedToScreen (nrm.x(), nrm.y()); }
 	};
 
 

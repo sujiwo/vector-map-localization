@@ -46,6 +46,11 @@ int main (int argc, char **argv)
 	Vector3 up (0, 1, 0);
 	PointSolver2::Projector projector (45.0, 640, 480);
 
+	// For testing projection
+//	cv::Mat image;
+//	PointSolver2::projectModel (image, model, projector, eyePos, centerOfView, up);
+//	cv::imwrite ("/tmp/norm.png", image);
+
 	cv::Mat timage = cv::imread ("/tmp/test.png", CV_LOAD_IMAGE_GRAYSCALE);
 
 	PointSolver2 solver (model, projector);
@@ -56,7 +61,6 @@ int main (int argc, char **argv)
 	poseFromViewMatrix (vm, eyePos, eyeDir);
 	solver.solve (timage, eyePos, eyeDir);
 
-	//solver.solve (timage, eyePos, eyeDir);
 
 
 }

@@ -12,6 +12,10 @@
 typedef cv::Vec3b Color3;
 
 
+const pscalar nearPlane = 0.1,
+	farPlane = 100.0;
+
+
 inline cv::Point2f tocv (Point2 &p)
 { return cv::Point2f (p.x(), p.y()); }
 
@@ -179,8 +183,9 @@ void PointSolver2::prepareImage ()
 		for (int j=0; j<image.cols; j++) {
 			if (p[j] !=0 ) {
 				ImagePoint pt;
-				pt.coord.x() = j;
-				pt.coord.y() = i;
+//				pt.coord.x() = j;
+//				pt.coord.y() = i;
+				pt.coord = projectionMatrix.ScreenToNormalized(j, i);
 				pt.nearestLine = -1;
 				pt.lineDistance = -1;
 				// imagePoints.push_back (pt);
@@ -217,8 +222,11 @@ void PointSolver2::projectModel (cv::Mat &output, vector<ModelLine> &model, Poin
 		P1.coord = projectPoint (line.p1, viewMatrix, projector);
 		P2.coord = projectPoint (line.p2, viewMatrix, projector);
 
-		cv::Point p1v (P1.coord.x(), P1.coord.y());
-		cv::Point p2v (P2.coord.x(), P2.coord.y());
+		Point2 P1scr = projector.NormalizedToScreen(P1.coord),
+			P2scr = projector.NormalizedToScreen(P2.coord);
+
+		cv::Point p1v (P1scr.x(), P1scr.y());
+		cv::Point p2v (P2scr.x(), P2scr.y());
 		cv::circle (output, p1v, 3, 255);
 		cv::circle (output, p2v, 3, 255);
 		cv::line (output, p1v, p2v, 255);
@@ -386,43 +394,82 @@ void PointSolver2::solveForCorrection ()
 	Eigen::MatrixXd jat = Jac.transpose() * Jac;
 	Eigen::VectorXd jae = Jac.transpose() * pointErrs;
 	Pcorrect = jat.colPivHouseholderQr().solve (jae);
-	std::cout << jat << std::endl;
+	std::cout << pointErrs << std::endl;
 }
 
 
-PointSolver2::Projector::Projector (pscalar fx, pscalar fy, pscalar cx, pscalar cy)
+//PointSolver2::Projector::Projector (pscalar fx, pscalar fy, pscalar cx, pscalar cy, int _w, int _h) :
+//	width(_w), height(_h)
+//{
+//	matrix = Eigen::Matrix<pscalar,3,4>::Zero ();
+//	matrix(0, 0) = fx;
+//	matrix(0, 2) = cx;
+//	matrix(1, 1) = fy;
+//	matrix(1, 2) = cy;
+//	matrix(2, 2) = 1;
+//}
+PointSolver2::Projector::Projector (pscalar fx, pscalar fy, pscalar cx, pscalar cy, int _w, int _h) :
+	width(_w), height(_h)
 {
-	matrix = Eigen::Matrix<pscalar,3,4>::Zero ();
-	matrix(0, 0) = fx;
-	matrix(0, 2) = cx;
-	matrix(1, 1) = fy;
-	matrix(1, 2) = cy;
-	matrix(2, 2) = 1;
+	matrix = Matrix4::Zero ();
+	matrix(0, 0) = 2*fx/width;
+	matrix(0, 2) = 2.0*(0.5 - cx/width);
+	matrix(1, 1) = 2.0*fy/height;
+	matrix(1, 2) = 2.0*(cy/height - 0.5);
+	matrix(2, 2) = -(farPlane+nearPlane) / (farPlane-nearPlane);
+	matrix(2, 3) = -2*.0*farPlane*nearPlane / (farPlane-nearPlane);
+	matrix(3, 2) = -1;
 }
+
+
+//PointSolver2::Projector::Projector (pscalar angleDegree, int w, int h):
+//	width (w), height(h)
+//{
+//	matrix = Eigen::Matrix<pscalar,3,4>::Zero ();
+//	pscalar angle = (angleDegree/2) * M_PI/180.0;
+//	pscalar cx = width / 2;
+//	pscalar cy = height / 2;
+//	pscalar fx = w / (2*tan(angle));
+//	pscalar fy = fx;
+//	//Projector (-fx, fy, cx, cy);
+//
+//	matrix(0, 0) = -fx;
+//	matrix(0, 2) = cx;
+//	matrix(1, 1) = fy;
+//	matrix(1, 2) = cy;
+//	matrix(2, 2) = 1;
+//}
+
+
 
 
 PointSolver2::Projector::Projector (pscalar angleDegree, int w, int h):
 	width (w), height(h)
 {
-	matrix = Eigen::Matrix<pscalar,3,4>::Zero ();
+	matrix = Matrix4::Zero ();
+	pscalar aspectRatio = width / height;
 	pscalar angle = (angleDegree/2) * M_PI/180.0;
-	pscalar cx = width / 2;
-	pscalar cy = height / 2;
-	pscalar fx = w / (2*tan(angle));
-	pscalar fy = fx;
-	//Projector (-fx, fy, cx, cy);
+	pscalar d = 1 / tan(angle);
 
-	matrix(0, 0) = -fx;
-	matrix(0, 2) = cx;
-	matrix(1, 1) = fy;
-	matrix(1, 2) = cy;
-	matrix(2, 2) = 1;
+	//Projector (-fx, fy, cx, cy);
+	matrix (0, 0) = d/aspectRatio;
+	matrix (1, 1) = d;
+	matrix (2, 2) = (nearPlane+farPlane) / (nearPlane - farPlane);
+	matrix (2, 3) = 2*nearPlane*farPlane / (nearPlane - farPlane);
+	matrix (3, 2) = -1;
 }
 
 
+//Point2 PointSolver2::Projector::operator *(Point4 &pointCam)
+//{
+//	Point3 phom = this->matrix * pointCam;
+//	return Point2 (phom.x(), phom.y()) / phom.z();
+//}
 Point2 PointSolver2::Projector::operator *(Point4 &pointCam)
 {
-	Point3 phom = this->matrix * pointCam;
+	Point4 ptmp = this->matrix * pointCam;
+	Point3 phom = ptmp.head<3>() / ptmp(3);
+
 	return Point2 (phom.x(), phom.y()) / phom.z();
 }
 
