@@ -189,11 +189,11 @@ def project2 (point3d, viewMat, projMat, width=0, height=0):
     point4d[3] = 1
     ps = projMat.dot(viewMat.dot(point4d))
     ps = ps / ps[3]
+    p2 = ps[0:2] / ps[2]
     if (width==0 and height==0) :
-        return ps[0:3]
+        return p2
     else :
         # Convert normalized device coordinate to screen coordinate
-        p2 = ps[0:2] / ps[2]
         p2[0] = width * (1+p2[0]) / 2
         p2[1] = height * (1-p2[1]) / 2
         return p2

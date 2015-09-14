@@ -91,60 +91,127 @@ void PointSolver2::solve (cv::Mat &inputImage, Point3 &startPos, Quaternion &sta
 }
 
 
+//void computeProjectionJacobian (
+//	Point3 &t,				// Camera center coordinate
+//	Quaternion &q,			// Camera orientation
+//	Point3 &point,			// Original point position
+//	Point2 &pim,			// Point in image
+//	float fx,
+//	float fy,
+//	float cx,
+//	float cy,	// From Intrinsic Matrix
+//	pscalar jacobian[7][2]	// jacobian result
+//	)
+//{
+//	pscalar x = point.x(),
+//			y = point.y(),
+//			z = point.z();
+//	pscalar Z = (-2*q.y()*q.y()-2*q.x()*q.x()+1)*(z-t.z()) + (2*q.y()*q.z()+2*q.w()*q.x())*(y-t.y())+(2*q.x()*q.z()-2*q.w()*q.y())*(x-t.x());
+//
+//	pscalar
+//		Tx = 2 * (q.w()*q.y() - q.x()*q.z()),
+//		Ty = -2 * (q.y()*q.z() + q.w()*q.x()),
+//		Tz = 2*q.y()*q.y() + 2*q.x()*q.x() - 1,
+//		Qx = -4*q.x()*(z-t.z()) + 2*q.w()*(y-t.y()) + 2*q.z()*(x-t.x()),
+//		Qy = -4*q.y()*(z-t.z()) + 2*q.z()*(y-t.y()) - 2*q.w()*(x-t.x()),
+//		Qz = 2*q.y()*(y - t.y()) + 2*q.x()*(x - t.x()),
+//		Qw = 2*q.x()*(y - t.y()) - 2*q.y()*(x - t.x());
+//
+//	// dtxx
+//	jacobian[0][0] = ((fx*(2*q.z()*q.z() + 2*q.y()*q.y()-1) + cx*Tx) / Z) - Tx*pim.x()/Z;
+//	// dtxy
+//	jacobian[0][1] = ((cy*Tx + fy*(-2*q.w()*q.z()-2*q.x()*q.y())) / Z) - Tx*pim.y()/Z;
+//	// dtyx
+//	jacobian[1][0] = ((cx*Ty+fx*(2*q.w()*q.z()-2*q.x()*q.y())) / Z) - Ty*pim.x()/Z;
+//	// dtyy
+//	jacobian[1][1] = ((fy*(2*q.z()*q.z() + 2*q.x()*q.x() - 1) + cy*Ty) / Z) - Ty*pim.y()/Z;
+//	// dtzx
+//	jacobian[2][0] = ((fx*(-2*q.x()*q.z()-2*q.w()*q.y()) + cx*Tz) / Z) - ((Tz*pim.x())/Z);
+//	// dtzy
+//	jacobian[2][1] = ((fx*(-2*q.x()*q.z()-2*q.w()*q.y()) + cx*Tz) / Z) - ((Tz*pim.y())/Z);
+//	// dqxx
+//	jacobian[3][0] = ((fx*(2*q.z()*(z-t.z()) + 2*q.y()*(y-t.y())) + cx*Qx)/Z) - (Qx*pim.x()/Z);
+//	// dqxy
+//	jacobian[3][1] = ((cy*Qx + fy*(-2*q.w()*(z-t.z()) -4*q.x()*(y-t.y()) + 2*q.y()*(x-t.x())) )/Z) - (Qx*pim.y()/Z);
+//	// dqyx
+//	jacobian[4][0] = (cx*Qy + fx*(2*q.w()*(z-t.z()) +2*q.x()*(y-t.y()) -4*q.y()*(x-t.x())))/Z  -  Qy*pim.x()/Z;
+//	// dqyy
+//	jacobian[4][1] = (fy*(2*q.z()*(z-t.z()) + 2*q.x()*(x-t.x())) + cy*Qy)/Z  -  Qy*pim.y()/Z;
+//	// dqzx
+//	jacobian[5][0] = (fx*(2*q.x()*(z-t.z()) - 2*q.w()*(y-t.y()) - 4*q.z()*(x-t.x())) + cx*Qz)/Z - Qz*pim.x()/Z;
+//	// dqzy
+//	jacobian[5][1] = (fy*(2*q.y()*(z-t.z()) - 4*q.z()*(y-t.y()) + 2*q.w()*(x-t.x())) + cy*Qz)/Z - Qz*pim.y()/Z;
+//	// dqwx
+//	jacobian[6][0] = (fx*(2*q.y()*(z-t.z()) - 2*q.z()*(y-t.y())) + cx*Qw)/Z - Qw*pim.x()/Z;
+//	// dqwy
+//	jacobian[6][1] = (fy*(2*q.z()*(x-t.x()) - 2*q.x()*(z-t.z())) + cy*Qw)/Z - Qw*pim.y()/Z;
+//}
 void computeProjectionJacobian (
 	Point3 &t,				// Camera center coordinate
 	Quaternion &q,			// Camera orientation
 	Point3 &point,			// Original point position
+	Point3 &pcam,			// point position in camera coordinate system
 	Point2 &pim,			// Point in image
-	float fx,
-	float fy,
-	float cx,
-	float cy,	// From Intrinsic Matrix
+	const cv::Mat &projectionMatrix,
 	pscalar jacobian[7][2]	// jacobian result
 	)
 {
-	pscalar x = point.x(),
-			y = point.y(),
-			z = point.z();
-	pscalar Z = (-2*q.y()*q.y()-2*q.x()*q.x()+1)*(z-t.z()) + (2*q.y()*q.z()+2*q.w()*q.x())*(y-t.y())+(2*q.x()*q.z()-2*q.w()*q.y())*(x-t.x());
+	auto
+		xs = point.x(),
+		ys = point.y(),
+		zs = point.z();
+	auto
+		x = pcam.x(),
+		y = pcam.y(),
+		z = pcam.z();
+	auto
+		qx = q.x(),
+		qy = q.y(),
+		qz = q.z(),
+		qw = q.w();
+	auto
+		tx = t.x(),
+		ty = t.y(),
+		tz = t.z();
 
-	pscalar
-		Tx = 2 * (q.w()*q.y() - q.x()*q.z()),
-		Ty = -2 * (q.y()*q.z() + q.w()*q.x()),
-		Tz = 2*q.y()*q.y() + 2*q.x()*q.x() - 1,
-		Qx = -4*q.x()*(z-t.z()) + 2*q.w()*(y-t.y()) + 2*q.z()*(x-t.x()),
-		Qy = -4*q.y()*(z-t.z()) + 2*q.z()*(y-t.y()) - 2*q.w()*(x-t.x()),
-		Qz = 2*q.y()*(y - t.y()) + 2*q.x()*(x - t.x()),
-		Qw = 2*q.x()*(y - t.y()) - 2*q.y()*(x - t.x());
+	auto
+		fx = projectionMatrix(0, 0),
+		fy = projectionMatrix(1, 1),
+		cx = projectionMatrix(0, 2),
+		cy = projectionMatrix(1, 2),
+		a = projectionMatrix(2, 2),
+		b = projectionMatrix(2, 3);
 
-	// dtxx
-	jacobian[0][0] = ((fx*(2*q.z()*q.z() + 2*q.y()*q.y()-1) + cx*Tx) / Z) - Tx*pim.x()/Z;
-	// dtxy
-	jacobian[0][1] = ((cy*Tx + fy*(-2*q.w()*q.z()-2*q.x()*q.y())) / Z) - Tx*pim.y()/Z;
-	// dtyx
-	jacobian[1][0] = ((cx*Ty+fx*(2*q.w()*q.z()-2*q.x()*q.y())) / Z) - Ty*pim.x()/Z;
-	// dtyy
-	jacobian[1][1] = ((fy*(2*q.z()*q.z() + 2*q.x()*q.x() - 1) + cy*Ty) / Z) - Ty*pim.y()/Z;
-	// dtzx
-	jacobian[2][0] = ((fx*(-2*q.x()*q.z()-2*q.w()*q.y()) + cx*Tz) / Z) - ((Tz*pim.x())/Z);
-	// dtzy
-	jacobian[2][1] = ((fx*(-2*q.x()*q.z()-2*q.w()*q.y()) + cx*Tz) / Z) - ((Tz*pim.y())/Z);
-	// dqxx
-	jacobian[3][0] = ((fx*(2*q.z()*(z-t.z()) + 2*q.y()*(y-t.y())) + cx*Qx)/Z) - (Qx*pim.x()/Z);
-	// dqxy
-	jacobian[3][1] = ((cy*Qx + fy*(-2*q.w()*(z-t.z()) -4*q.x()*(y-t.y()) + 2*q.y()*(x-t.x())) )/Z) - (Qx*pim.y()/Z);
-	// dqyx
-	jacobian[4][0] = (cx*Qy + fx*(2*q.w()*(z-t.z()) +2*q.x()*(y-t.y()) -4*q.y()*(x-t.x())))/Z  -  Qy*pim.x()/Z;
-	// dqyy
-	jacobian[4][1] = (fy*(2*q.z()*(z-t.z()) + 2*q.x()*(x-t.x())) + cy*Qy)/Z  -  Qy*pim.y()/Z;
-	// dqzx
-	jacobian[5][0] = (fx*(2*q.x()*(z-t.z()) - 2*q.w()*(y-t.y()) - 4*q.z()*(x-t.x())) + cx*Qz)/Z - Qz*pim.x()/Z;
-	// dqzy
-	jacobian[5][1] = (fy*(2*q.y()*(z-t.z()) - 4*q.z()*(y-t.y()) + 2*q.w()*(x-t.x())) + cy*Qz)/Z - Qz*pim.y()/Z;
-	// dqwx
-	jacobian[6][0] = (fx*(2*q.y()*(z-t.z()) - 2*q.z()*(y-t.y())) + cx*Qw)/Z - Qw*pim.x()/Z;
-	// dqwy
-	jacobian[6][1] = (fy*(2*q.z()*(x-t.x()) - 2*q.x()*(z-t.z())) + cy*Qw)/Z - Qw*pim.y()/Z;
+	auto
+		dxtx = 2*qz*qz + 2*qy*qy - 1,
+		dxty = 2*qw*qz - 2*qx*qy,
+		dxtz = -2*qx*qz - 2*qw*qy,
+		dxqx = 2*qz*(zs-tz) + 2*qy*(ys-ty),
+		dxqy = 2*qw*(zs-tz) + 2*qx*(ys-ty) - 4*qy*(xs-tx),
+		dxqz = 2*qx*(zs-tz) - 2*qw*(ys-ty) - 4*qz*(xs-tx),
+		dxqw = 2*qy*(zs-tz) - 2*qz*(ys-ty);
+
+	auto
+		dytx = -2*qw*qz - 2*qx*qy,
+		dyty = 2*qz*qz + 2*qx*qx - 1,
+		dytz = 2*qw*qx - 2*qy*qz,
+		dyqx = -2*qw*(zs-tz) - 4*qx*(ys-ty) + 2*qy*(xs-tx),
+		dyqy = 2*qz*(zs-tz) + 2*qx*(xs-tx),
+		dyqz = 2*qy*(zs-tz) - 4*qz*(ys-ty)+2*qw*(xs-tx),
+		dyqw = 2*qz*(xs-tx) - 2*qx*(zs-tz);
+
+	auto
+		dztx = 2*qw*qy - 2*qx*qz,
+		dzty = -2*qy*qz - 2*qw*qx,
+		dztz = 2*qy*qy + 2*qx*qx - 1,
+		dzqx = -4*qx*(zs-tz) + 2*qw*(ys-ty) + 2*qz*(xs-tx),
+		dzqy = -4*qy*(zs-tz) + 2*qz*(ys-ty) - 2*qw*(xs-tx),
+		dzqz = 2*qy*(ys-ty) + 2*qx*(xs-tx),
+		dzqw = 2*qx*(ys-ty) - 2*qy*(xs-tx);
+
+	auto quotient = a*z + b;
+	jacobian [0][0] = (cx*dztx + fx*dxtx)/quotient - (a*(cx*z + fx*x)*dztx)/quotient*quotient;
+	jacobian [0][1] = (cy*dztx + fy*dytx)/quotient - (a*(cy*z + fy*y)*dztx)/quotient*quotient;
 }
 
 
@@ -394,7 +461,8 @@ void PointSolver2::solveForCorrection ()
 	Eigen::MatrixXd jat = Jac.transpose() * Jac;
 	Eigen::VectorXd jae = Jac.transpose() * pointErrs;
 	Pcorrect = jat.colPivHouseholderQr().solve (jae);
-	std::cout << pointErrs << std::endl;
+//	std::cout << pointErrs << std::endl;
+	std::cout << Pcorrect << std::endl;
 }
 
 

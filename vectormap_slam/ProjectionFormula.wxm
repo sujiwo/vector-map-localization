@@ -6,195 +6,55 @@ Definition of Projection Matrices
    [wxMaxima: comment end   ] */
 
 /* [wxMaxima: input   start ] */
-P : [x,y,z, 1];
+P : [xs,ys,zs, 1];
 T: matrix ([1,0,0,-tx], [0,1,0,-ty], [0,0,1,-tz], [0,0,0,1]);
 Q: [qx,qy,qz,qw];
-RQ : matrix(
+R : matrix(
     [1-2*qy^2-2*qz^2, 2*qx*qy-2*qw*qz, 2*qx*qz+2*qw*qy, 0],
     [2*qx*qy+2*qw*qz, 1-2*qx^2-2*qz^2, 2*qy*qz-2*qw*qx, 0],
     [2*qx*qz-2*qw*qy, 2*qy*qz+2*qw*qx, 1-2*qx^2-2*qy^2, 0],
     [0, 0, 0, 1]
 );
-F: matrix([fx,0,cx,0], [0,fy,cy,0], [0,0,1,0]);
 /* [wxMaxima: input   end   ] */
 
 /* [wxMaxima: input   start ] */
-RQ . T . P;
+C: R . T. P;
 /* [wxMaxima: input   end   ] */
 
 /* [wxMaxima: input   start ] */
-(F . RQ . T . P);
+x: C[1][1];
+y: C[2][1];
+z: C[3][1];
 /* [wxMaxima: input   end   ] */
 
 /* [wxMaxima: input   start ] */
-Proj1 : (F . RQ . T . P);
+diff (x, tx);
+diff (x, ty);
+diff (x, tz);
+diff (x, qx);
+diff (x, qy);
+diff (x, qz);
+diff (x, qw);
 /* [wxMaxima: input   end   ] */
 
 /* [wxMaxima: input   start ] */
-Z : Proj1[3][1];
+diff (y, tx);
+diff (y, ty);
+diff (y, tz);
+diff (y, qx);
+diff (y, qy);
+diff (y, qz);
+diff (y, qw);
 /* [wxMaxima: input   end   ] */
 
 /* [wxMaxima: input   start ] */
-Proj2: Proj1/Z;
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-T . P;
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-PC : RQ . T . P;
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-dtx: diff (Proj1/Z, tx);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-Tx: 2*qw*qy-2*qx*qz;
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-dtxx: ((fx*(2*qz^2+2*qy^2-1) + cx*Tx) / Z) - Tx*Proj2[1][1]/Z;
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-dtxy: ((cy*Tx + fy*(-2*qw*qz-2*qx*qy)) / Z) - Tx*Proj2[2][1]/Z;
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-is (dtxx = dtx[1][1]);
-is (dtxy = dtx[2][1]);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-dty: diff (Proj1/Z, ty);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-Ty: (-2*qy*qz-2*qw*qx);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-dtyx: ((cx*Ty+fx*(2*qw*qz-2*qx*qy)) / Z) - Ty*Proj2[1][1]/Z;
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-dtyy: ((fy*(2*qz^2+2*qx^2-1) + cy*Ty) / Z) - Ty*Proj2[2][1]/Z;
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-is (dtyx=dty[1][1]);
-is (dtyy=dty[2][1]);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-dtz: diff (Proj1/Z, tz);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-Tz: 2*qy^2+2*qx^2-1;
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-dtzx: ((fx*(-2*qx*qz-2*qw*qy) + cx*Tz) / Z) - ((Tz*Proj2[1][1])/Z);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-dtzy: ((fy*(2*qw*qx-2*qy*qz) + cy*Tz) / Z) - Tz*Proj2[2][1]/Z;
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-is (dtzx=dtz[1][1]);
-is (dtzy=dtz[2][1]);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: comment start ]
-For dqxx and dqxy, the term ((-4*qx*(z-tz) + 2*qw*(y-ty) + 2*qz*(x-tx)) is same, so it may be factored out
-   [wxMaxima: comment end   ] */
-
-/* [wxMaxima: input   start ] */
-dqx: diff (Proj1/Z, qx);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-Qx : -4*qx*(z-tz) + 2*qw*(y-ty) + 2*qz*(x-tx);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-dqxx: ((fx*(2*qz*(z-tz) + 2*qy*(y-ty)) + cx*Qx)/Z) - (Qx*Proj2[1][1]/Z);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-dqxy: ((cy*Qx + fy*(-2*qw*(z-tz) -4*qx*(y-ty) + 2*qy*(x-tx)) )/Z) - (Qx*Proj2[2][1]/Z);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-is (dqxx = dqx[1][1]);
-is (dqxy = dqx[2][1]);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-dqy: diff (Proj1/Z, qy);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-Qy : -4*qy*(z-tz) + 2*qz*(y-ty) - 2*qw*(x-tx);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-dqyx : (cx*Qy + fx*(2*qw*(z-tz) +2*qx*(y-ty) -4*qy*(x-tx)))/Z  -  Qy*Proj2[1][1]/Z;
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-dqyy : (fy*(2*qz*(z-tz) + 2*qx*(x-tx)) + cy*Qy)/Z  -  Qy*Proj2[2][1]/Z;
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-is (dqyx = dqy[1][1]);
-is (dqyy = dqy[2][1]);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-dqz: diff (Proj1/Z, qz);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-Qz: 2*qy*(y-ty) + 2*qx*(x-tx);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-dqzx: (fx*(2*qx*(z-tz) - 2*qw*(y-ty) - 4*qz*(x-tx)) + cx*Qz)/Z - Qz*Proj2[1][1]/Z;
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-dqzy: (fy*(2*qy*(z-tz) - 4*qz*(y-ty) + 2*qw*(x-tx)) + cy*Qz)/Z - Qz*Proj2[2][1]/Z;
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-is (dqzx=dqz[1][1]);
-is (dqzy=dqz[2][1]);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-dqw: diff (Proj1/Z, qw);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-Qw: 2*qx*(y-ty) - 2*qy*(x-tx);
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-dqwx: (fx*(2*qy*(z-tz) - 2*qz*(y-ty)) + cx*Qw)/Z - Qw*Proj2[1][1]/Z;
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-dqwy: (fy*(2*qz*(x-tx) - 2*qx*(z-tz)) + cy*Qw)/Z - Qw*Proj2[2][1]/Z;
-/* [wxMaxima: input   end   ] */
-
-/* [wxMaxima: input   start ] */
-is (dqwx = dqw[1][1]);
-is (dqwy = dqw[2][1]);
+diff (z, tx);
+diff (z, ty);
+diff (z, tz);
+diff (z, qx);
+diff (z, qy);
+diff (z, qz);
+diff (z, qw);
 /* [wxMaxima: input   end   ] */
 
 /* Maxima can't load/batch files which end with a comment! */

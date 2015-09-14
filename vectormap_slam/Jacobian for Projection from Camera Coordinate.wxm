@@ -1,0 +1,34 @@
+/* [wxMaxima batch file version 1] [ DO NOT EDIT BY HAND! ]*/
+/* [ Created with wxMaxima version 13.04.2 ] */
+
+/* [wxMaxima: input   start ] */
+K: matrix(
+    [fx, 0, cx, 0],
+    [0, fy, cy, 0],
+    [0,  0,  a, b],
+    [0,  0, -1, 0]
+);
+C: [x, y, z, 1];
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+Pk: K . C;
+Pl: Pk / Pk[4][1];
+Pt: [
+    Pl[1][1] / Pl[3][1],
+    Pl[2][1] / Pl[3][1]
+];
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+u(p) := ( cx*z(p) + fx*x(p) ) / ( a*z(p) + b );
+v(p) := ( cy*z(p) + fy*y(p) ) / ( a*z(p) + b );
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+diff (u(p), p);
+diff (v(p), p);
+/* [wxMaxima: input   end   ] */
+
+/* Maxima can't load/batch files which end with a comment! */
+"Created with wxMaxima"$
