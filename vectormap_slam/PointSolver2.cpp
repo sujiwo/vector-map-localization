@@ -7,6 +7,7 @@
 
 #include "PointSolver2.h"
 #include <cstdlib>
+#include <cmath>
 
 
 typedef cv::Vec3b Color3;
@@ -20,20 +21,19 @@ inline cv::Point2f tocv (Point2 &p)
 { return cv::Point2f (p.x(), p.y()); }
 
 
-Point2 projectPoint (Point3 &src, Matrix4 &viewMatrix, PointSolver2::Projector &projectionMatrix)
+Point2 projectPoint (Point3 &src, Matrix4 &viewMatrix, PointSolver2::Projector &projectionMatrix, Point3 &pointInCam)
 {
 	Point4 src4 (src.x(), src.y(), src.z(), 1);
 	Point4 pcam = viewMatrix * src4;
+	pointInCam = pcam.head(3);
 	return projectionMatrix * pcam;
 }
 
 
-bool projectLine (Point3 &src1, Point3 &src2, Matrix4 &viewMatrix, PointSolver2::Projector &projectionMatrix, Point2 &lp1, Point2 &lp2)
+void projectLine (Point3 &src1, Point3 &src2, Matrix4 &viewMatrix, PointSolver2::Projector &projectionMatrix, Point2 &lp1, Point2 &lp2, Point3 &lp1InCam, Point3 &lp2InCam)
 {
-	lp1 = projectPoint (src1, viewMatrix, projectionMatrix);
-	lp2 = projectPoint (src2, viewMatrix, projectionMatrix);
-
-	// decision for whether the projected points are outside
+	lp1 = projectPoint (src1, viewMatrix, projectionMatrix, lp1InCam);
+	lp2 = projectPoint (src2, viewMatrix, projectionMatrix, lp2InCam);
 }
 
 
@@ -80,14 +80,23 @@ void PointSolver2::solve (cv::Mat &inputImage, Point3 &startPos, Quaternion &sta
 	position0 = startPos;
 	orientation0 = startOrientation;
 	image = inputImage;
-	currentViewMatrix = createViewMatrix (startPos, startOrientation);
 
-	projectLines ();
 	prepareImage ();
-//	debugPointPairing ("/tmp/debugpoint.png");
 
-	prepareMatrices ();
-	solveForCorrection ();
+#define ITERATION 5
+
+	for (int np=0; np<ITERATION; np++) {
+		currentViewMatrix = createViewMatrix (position0, orientation0);
+
+		projectLines ();
+		findNearestLinePerPoint ();
+		prepareMatrices ();
+		solveForCorrection ();
+	}
+//	currentViewMatrix = createViewMatrix (position0, orientation0);
+	debugDraw ("/tmp/draw.png", &position0, &orientation0);
+
+	return;
 }
 
 
@@ -152,7 +161,7 @@ void computeProjectionJacobian (
 	Point3 &point,			// Original point position
 	Point3 &pcam,			// point position in camera coordinate system
 	Point2 &pim,			// Point in image
-	const cv::Mat &projectionMatrix,
+	const Matrix4 &projectionMatrix,
 	pscalar jacobian[7][2]	// jacobian result
 	)
 {
@@ -210,8 +219,28 @@ void computeProjectionJacobian (
 		dzqw = 2*qx*(ys-ty) - 2*qy*(xs-tx);
 
 	auto quotient = a*z + b;
-	jacobian [0][0] = (cx*dztx + fx*dxtx)/quotient - (a*(cx*z + fx*x)*dztx)/quotient*quotient;
-	jacobian [0][1] = (cy*dztx + fy*dytx)/quotient - (a*(cy*z + fy*y)*dztx)/quotient*quotient;
+
+	jacobian [0][0] = (cx*dztx + fx*dxtx)/quotient - (a*(cx*z + fx*x)*dztx)/(quotient*quotient);
+	jacobian [0][1] = (cy*dztx + fy*dytx)/quotient - (a*(cy*z + fy*y)*dztx)/(quotient*quotient);
+
+	jacobian [1][0] = (cx*dzty + fx*dxty)/quotient - (a*(cx*z + fx*x)*dzty)/(quotient*quotient);
+	jacobian [1][1] = (cy*dzty + fy*dyty)/quotient - (a*(cy*z + fy*y)*dzty)/(quotient*quotient);
+
+	jacobian [2][0] = (cx*dztz + fx*dxtz)/quotient - (a*(cx*z + fx*x)*dztz)/(quotient*quotient);
+	jacobian [2][1] = (cy*dztz + fy*dytz)/quotient - (a*(cy*z + fy*y)*dztz)/(quotient*quotient);
+
+	jacobian [3][0] = (cx*dzqx + fx*dxqx)/quotient - (a*(cx*z + fx*x)*dzqx)/(quotient*quotient);
+	jacobian [3][1] = (cy*dzqx + fy*dyqx)/quotient - (a*(cy*z + fy*y)*dzqx)/(quotient*quotient);
+
+	jacobian [4][0] = (cx*dzqy + fx*dxqy)/quotient - (a*(cx*z + fx*x)*dzqy)/(quotient*quotient);
+	jacobian [4][1] = (cy*dzqy + fy*dyqy)/quotient - (a*(cy*z + fy*y)*dzqy)/(quotient*quotient);
+
+	jacobian [5][0] = (cx*dzqz + fx*dxqz)/quotient - (a*(cx*z + fx*x)*dzqz)/(quotient*quotient);
+	jacobian [5][1] = (cy*dzqz + fy*dyqz)/quotient - (a*(cy*z + fy*y)*dzqz)/(quotient*quotient);
+
+	jacobian [6][0] = (cx*dzqw + fx*dxqw)/quotient - (a*(cx*z + fx*x)*dzqw)/(quotient*quotient);
+	jacobian [6][1] = (cy*dzqw + fy*dyqw)/quotient - (a*(cy*z + fy*y)*dzqw)/(quotient*quotient);
+
 }
 
 
@@ -223,17 +252,25 @@ void PointSolver2::projectLines()
 		ModelLine &line = model[lid];
 
 		ProjectedPoint P1, P2;
-		projectLine (line.p1, line.p2, currentViewMatrix, projectionMatrix, P1.coord, P2.coord);
+		projectLine (line.p1, line.p2, currentViewMatrix, projectionMatrix, P1.coord, P2.coord, P1.inCam, P2.inCam);
 
-		LineSegment2D vLine;
-		vLine.A.coord = P1.coord, vLine.B.coord = P2.coord;
-		vLine.modelLid = lid;
+		LineSegment2D vLine (P1, P2, lid);
 
-		computeProjectionJacobian (position0, orientation0, line.p1, vLine.A.coord,
-				projectionMatrix.fx(), projectionMatrix.fy(), projectionMatrix.cx(), projectionMatrix.cy(),
+		computeProjectionJacobian (
+				position0,
+				orientation0,
+				line.p1,
+				vLine.A.inCam,
+				vLine.A.coord,
+				projectionMatrix.matrix,
 				vLine.A.jacobian);
-		computeProjectionJacobian (position0, orientation0, line.p2, vLine.B.coord,
-				projectionMatrix.fx(), projectionMatrix.fy(), projectionMatrix.cx(), projectionMatrix.cy(),
+		computeProjectionJacobian (
+				position0,
+				orientation0,
+				line.p2,
+				vLine.B.inCam,
+				vLine.B.coord,
+				projectionMatrix.matrix,
 				vLine.B.jacobian);
 
 		visibleLines.push_back (vLine);
@@ -249,29 +286,31 @@ void PointSolver2::prepareImage ()
 		uint8_t *p = image.ptr<uint8_t> (i);
 		for (int j=0; j<image.cols; j++) {
 			if (p[j] !=0 ) {
+
 				ImagePoint pt;
-//				pt.coord.x() = j;
-//				pt.coord.y() = i;
 				pt.coord = projectionMatrix.ScreenToNormalized(j, i);
 				pt.nearestLine = -1;
 				pt.lineDistance = -1;
-				// imagePoints.push_back (pt);
 
 				pt.lineDistance = 1e32;
+				ipoints.push_back (pt);
 
-				// find nearest line
-				for (int il=0; il<visibleLines.size(); il++) {
-					LineSegment2D &line = visibleLines[il];
-					pscalar dist = line.distanceSquared(pt.coord);
-					if (dist < pt.lineDistance) {
-						pt.nearestLine = il;
-						pt.lineDistance = dist;
-					}
-				}
+			}
+		}
+	}
+}
 
-				if (pt.lineDistance < 4000.0) {
-					ipoints.push_back (pt);
-				}
+
+void PointSolver2::findNearestLinePerPoint ()
+{
+	for (auto &point: ipoints) {
+		point.lineDistance = 1e32;
+		for (int il=0; il<visibleLines.size(); il++) {
+			LineSegment2D &line = visibleLines[il];
+			pscalar dist = line.distance(point.coord);
+			if (fabs(dist) < fabs(point.lineDistance)) {
+				point.nearestLine = il;
+				point.lineDistance = dist;
 			}
 		}
 	}
@@ -286,8 +325,8 @@ void PointSolver2::projectModel (cv::Mat &output, vector<ModelLine> &model, Poin
 		ModelLine &line = model[lid];
 
 		ProjectedPoint P1, P2;
-		P1.coord = projectPoint (line.p1, viewMatrix, projector);
-		P2.coord = projectPoint (line.p2, viewMatrix, projector);
+		P1.coord = projectPoint (line.p1, viewMatrix, projector, P1.inCam);
+		P2.coord = projectPoint (line.p2, viewMatrix, projector, P2.inCam);
 
 		Point2 P1scr = projector.NormalizedToScreen(P1.coord),
 			P2scr = projector.NormalizedToScreen(P2.coord);
@@ -366,92 +405,10 @@ Point2 LineSegment2D::nearestTo (const Point2 &P)
 }
 
 
-void LineSegment2D::errorJacobian1 (
-	const float &px,
-	const float &py,
-	const float &p1x,
-	const float &p1y,
-	const float &p2x,
-	const float &p2y,
-	const float lsegmentsq,
-	float &dep1x, float &dep1y, float &dep2x, float &dep2y)
-{
-	dep1x = -2 * (px - p1x);
-	dep1y = -2 * (py - p1y);
-	dep2x = 0;
-	dep2y = 0;
-}
-
-
-void LineSegment2D::errorJacobian2 (
-		const float &px,
-		const float &py,
-		const float &p1x,
-		const float &p1y,
-		const float &p2x,
-		const float &p2y,
-		const float lsegmentsq,
-		float &dep1x, float &dep1y, float &dep2x, float &dep2y)
-{
-	dep1x = -2*(p2y-p1y)*
-		(p2x*py-p1x*py-p2y*px+p1y*px+p1x*p2y-p1y*p2x) *
-		(p2y*py-p1y*py+p2x*px-p1x*px-p2y*p2y+p1y*p2y-p2x*p2x+p1x*p2x) /
-		(lsegmentsq * lsegmentsq);
-	dep1y = 2*(p2x-p1x)*
-		(p2x*py-p1x*py-p2y*px+p1y*px+p1x*p2y-p1y*p2x) *
-		(p2y*py-p1y*py+p2x*px-p1x*px-p2y*p2y+p1y*p2y-p2x*p2x+p1x*p2x) /
-		(lsegmentsq * lsegmentsq);
-	dep2x = 2*(p2y-p1y)*
-		(p2x*py-p1x*py-p2y*px+p1y*px+p1x*p2y-p1y*p2x) *
-		(p2y*py-p1y*py+p2x*px-p1x*px-p1y*p2y-p1x*p2x+p1y*p1y+p1x*p1x) /
-		(lsegmentsq * lsegmentsq);
-	dep2y = -2*(p2x-p1x)*
-		(p2x*py-p1x*py-p2y*px+p1y*px+p1x*p2y-p1y*p2x)*
-		(p2y*py-p1y*py+p2x*px-p1x*px-p1y*p2y-p1x*p2x+p1y*p1y+p1x*p1x) /
-		(lsegmentsq * lsegmentsq);
-}
-
-
-void LineSegment2D::errorJacobian3 (
-	const float &px,
-	const float &py,
-	const float &p1x,
-	const float &p1y,
-	const float &p2x,
-	const float &p2y,
-	const float lsegmentsq,
-	float &dep1x, float &dep1y, float &dep2x, float &dep2y)
-{
-	dep1x = 0;
-	dep1y = 0;
-	dep2x = -2 * (px - p2x);
-	dep2y = -2 * (py - p2y);
-}
-
-
 void LineSegment2D::errorJacobian (Point2 &P, pscalar *jm)
 {
-	Vector2 M = B.coord - A.coord;
-	pscalar t = M.dot(P-A.coord) / (M.squaredNorm());
-
-	pscalar lsegmentsq = this->lengthSquared();
-
-	pscalar dep1x, dep1y, dep2x, dep2y;
-	pscalar p1x = A.coord.x(),
-			p1y = A.coord.y(),
-			p2x = B.coord.x(),
-			p2y = B.coord.y(),
-			px = P.x(), py = P.y();
-
-	if (t<=0)
-		errorJacobian1 (px, py, p1x, p1y, p2x, p2y, lsegmentsq, dep1x, dep1y, dep2x, dep2y);
-	else if (t>0 and t<1)
-		errorJacobian2 (px, py, p1x, p1y, p2x, p2y, lsegmentsq, dep1x, dep1y, dep2x, dep2y);
-	else
-		errorJacobian3 (px, py, p1x, p1y, p2x, p2y, lsegmentsq, dep1x, dep1y, dep2x, dep2y);
-
 	for (int i=0; i<7; i++) {
-		jm[i] = dep1x*A.jacobian[i][0] + dep1y*A.jacobian[i][1] + dep2x*B.jacobian[i][0] + dep2y*B.jacobian[i][1];
+		jm[i] = sin*A.jacobian[i][0] - cos*B.jacobian[i][1];
 	}
 }
 
@@ -461,21 +418,19 @@ void PointSolver2::solveForCorrection ()
 	Eigen::MatrixXd jat = Jac.transpose() * Jac;
 	Eigen::VectorXd jae = Jac.transpose() * pointErrs;
 	Pcorrect = jat.colPivHouseholderQr().solve (jae);
-//	std::cout << pointErrs << std::endl;
-	std::cout << Pcorrect << std::endl;
+	position0.x() -= Pcorrect[0];
+	position0.y() -= Pcorrect[1];
+	position0.z() -= Pcorrect[2];
+	orientation0.x() -= Pcorrect[3];
+	orientation0.y() -= Pcorrect[4];
+	orientation0.z() -= Pcorrect[5];
+	orientation0.w() -= Pcorrect[6];
+//	orientation0.normalize();
+//	std::cout << jat << std::endl;
+//	std::cout << Pcorrect << std::endl;
 }
 
 
-//PointSolver2::Projector::Projector (pscalar fx, pscalar fy, pscalar cx, pscalar cy, int _w, int _h) :
-//	width(_w), height(_h)
-//{
-//	matrix = Eigen::Matrix<pscalar,3,4>::Zero ();
-//	matrix(0, 0) = fx;
-//	matrix(0, 2) = cx;
-//	matrix(1, 1) = fy;
-//	matrix(1, 2) = cy;
-//	matrix(2, 2) = 1;
-//}
 PointSolver2::Projector::Projector (pscalar fx, pscalar fy, pscalar cx, pscalar cy, int _w, int _h) :
 	width(_w), height(_h)
 {
@@ -488,27 +443,6 @@ PointSolver2::Projector::Projector (pscalar fx, pscalar fy, pscalar cx, pscalar 
 	matrix(2, 3) = -2*.0*farPlane*nearPlane / (farPlane-nearPlane);
 	matrix(3, 2) = -1;
 }
-
-
-//PointSolver2::Projector::Projector (pscalar angleDegree, int w, int h):
-//	width (w), height(h)
-//{
-//	matrix = Eigen::Matrix<pscalar,3,4>::Zero ();
-//	pscalar angle = (angleDegree/2) * M_PI/180.0;
-//	pscalar cx = width / 2;
-//	pscalar cy = height / 2;
-//	pscalar fx = w / (2*tan(angle));
-//	pscalar fy = fx;
-//	//Projector (-fx, fy, cx, cy);
-//
-//	matrix(0, 0) = -fx;
-//	matrix(0, 2) = cx;
-//	matrix(1, 1) = fy;
-//	matrix(1, 2) = cy;
-//	matrix(2, 2) = 1;
-//}
-
-
 
 
 PointSolver2::Projector::Projector (pscalar angleDegree, int w, int h):
@@ -528,11 +462,6 @@ PointSolver2::Projector::Projector (pscalar angleDegree, int w, int h):
 }
 
 
-//Point2 PointSolver2::Projector::operator *(Point4 &pointCam)
-//{
-//	Point3 phom = this->matrix * pointCam;
-//	return Point2 (phom.x(), phom.y()) / phom.z();
-//}
 Point2 PointSolver2::Projector::operator *(Point4 &pointCam)
 {
 	Point4 ptmp = this->matrix * pointCam;
@@ -557,17 +486,35 @@ void PointSolver2::debugPointPairing(const char *imgfilename)
 	Color3 white (255,255,255);
 
 	for (auto &line: visibleLines) {
-		cv::Point2f p1 = tocv (line.A.coord), p2 = tocv (line.B.coord);
+		Point2 pA = projectionMatrix.NormalizedToScreen(line.A.coord),
+			pB = projectionMatrix.NormalizedToScreen(line.B.coord);
+		cv::Point2f p1 = tocv (pA), p2 = tocv (pB);
 		cv::line(dbgImage, p1, p2, CV_RGB(120, 120, 120));
 	}
 
 	for (auto &p: ipoints) {
-		cv::Point2f pos = tocv (p.coord);
+		Point2 ps = projectionMatrix.NormalizedToScreen(p.coord);
+		cv::Point2f pos = tocv (ps);
 		LineSegment2D &line = visibleLines[p.nearestLine];
 		Point2 lnear = line.nearestTo(p.coord);
-		cv::line (dbgImage, pos, tocv(lnear), CV_RGB(0, 80, 0));
+		Point2 lnearsc = projectionMatrix.NormalizedToScreen(lnear);
+		cv::line (dbgImage, pos, tocv(lnearsc), CV_RGB(0, 80, 0));
 		dbgImage.at<Color3> (pos) = white;
 	}
 
 	cv::imwrite (imgfilename, dbgImage);
+}
+
+
+void PointSolver2::debugDraw (const char *imgname, Point3 *pos, Quaternion *orin)
+{
+	cv::Mat image;
+//	Matrix4 currentViewMatrix = createViewMatrix (position0, orientation0);
+	Matrix4 cViewMatrix;
+	if (pos==NULL)
+		cViewMatrix = currentViewMatrix;
+	else
+		cViewMatrix = createViewMatrix (*pos, *orin);
+	PointSolver2::projectModel (image, model, this->projectionMatrix, cViewMatrix);
+	cv::imwrite (imgname, image);
 }

@@ -60,7 +60,7 @@ int main (int argc, char **argv)
 	Quaternion eyeDir;
 	poseFromViewMatrix (vm, eyePos, eyeDir);
 	solver.solve (timage, eyePos, eyeDir);
-
+//	solver.debugDraw ("/tmp/draw.png");
 
 
 }

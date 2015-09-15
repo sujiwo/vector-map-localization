@@ -10,6 +10,8 @@
 
 #include <opencv2/opencv.hpp>
 #include <vector>
+#include <limits>
+#include <cstring>
 #include "Math.h"
 
 
@@ -32,6 +34,7 @@ struct ModelLine {
 
 struct ProjectedPoint {
 	Point2 coord;
+	Point3 inCam;
 	int modelLid;
 	pscalar jacobian[7][2];
 };
@@ -40,6 +43,17 @@ struct ProjectedPoint {
 struct LineSegment2D {
 	ProjectedPoint A, B;
 	int modelLid;
+	pscalar sin, cos;
+
+	LineSegment2D (const ProjectedPoint &pA, const ProjectedPoint &pB, int &lid) :
+		A(pA), B(pB), modelLid(lid)
+	{
+		auto r = length();
+		sin = (B.coord.x() - A.coord.x()) / r;
+		cos = (B.coord.y() - A.coord.y()) / r;
+		memset (A.jacobian, 0, sizeof(A.jacobian));
+		memset (B.jacobian, 0, sizeof(B.jacobian));
+	}
 
 	pscalar error (Point2 &p);
 	void errorJacobian (Point2 &p, pscalar jacobianMat[7]);
@@ -52,40 +66,17 @@ struct LineSegment2D {
 
 	pscalar distanceSquared (Point2 &p);
 
+	pscalar distance (const Point2 &p)
+	{
+		return p.x()*sin - p.y()*cos;
+	}
+
 	Point2 center()
 	{ return (A.coord + B.coord) / 2; }
 
 	// Returns a point in this line which is nearest to a specified point
 	Point2 nearestTo (const Point2 &t);
 
-private:
-	void errorJacobian1 (
-		const float &px,
-		const float &py,
-		const float &p1x,
-		const float &p1y,
-		const float &p2x,
-		const float &p2y,
-		const float lsegmentsq,
-		float &dep1x, float &dep1y, float &dep2x, float &dep2y);
-	void errorJacobian2 (
-		const float &px,
-		const float &py,
-		const float &p1x,
-		const float &p1y,
-		const float &p2x,
-		const float &p2y,
-		const float lsegmentsq,
-		float &dep1x, float &dep1y, float &dep2x, float &dep2y);
-	void errorJacobian3 (
-		const float &px,
-		const float &py,
-		const float &p1x,
-		const float &p1y,
-		const float &p2x,
-		const float &p2y,
-		const float lsegmentsq,
-		float &dep1x, float &dep1y, float &dep2x, float &dep2y);
 };
 
 
@@ -136,6 +127,7 @@ public:
 	// for debugging purposes
 	void debugProjection (const char *imageFilename);
 	void debugPointPairing (const char *imgname);
+	void debugDraw (const char *imgname, Point3 *pos=NULL, Quaternion *orin=NULL);
 
 	static void projectModel (cv::Mat &outputImage, vector<ModelLine> &m, PointSolver2::Projector &projector, Matrix4 &viewMatrix);
 	static void projectModel (cv::Mat &outputImage, vector<ModelLine> &m, PointSolver2::Projector &projector, Point3 &cameraPosition, Quaternion &cameraOrientation);
@@ -153,8 +145,11 @@ protected:
 	vector<ImagePoint> ipoints;
 	Matrix4 currentViewMatrix;
 
-	void projectLines ();
 	void prepareImage ();
+
+	void projectLines ();
+	void findNearestLinePerPoint ();
+
 	void prepareMatrices ();
 	void solveForCorrection ();
 
