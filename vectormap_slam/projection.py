@@ -256,6 +256,7 @@ def drawPoints2 (object, image, viewMat, projMat):
 
 if __name__ == '__main__' :
     viewmat = lookAt2 ([-0.5, -0.5, 2], [0.5, 0.5, -2], [0, 1, 0])
+    position, orientation = createPoseFromViewMatrix(viewmat)
 #     viewmat = lookAt2 ([0.5, 0.5, 2], [0.5, 0.5, -2], [0, 1, 0])
 #     viewmat = lookAt1((-0.915031, -0.943627, 1.656656), (0.985495, -0.117826, 0.121295, -0.014295))
     projmat = perspective6(45.0, 640, 480)

@@ -408,7 +408,7 @@ Point2 LineSegment2D::nearestTo (const Point2 &P)
 void LineSegment2D::errorJacobian (Point2 &P, pscalar *jm)
 {
 	for (int i=0; i<7; i++) {
-		jm[i] = sin*A.jacobian[i][0] - cos*B.jacobian[i][1];
+		jm[i] = sin*A.jacobian[i][0] - cos*A.jacobian[i][1];
 	}
 }
 

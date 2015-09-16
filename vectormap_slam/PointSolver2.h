@@ -43,7 +43,7 @@ struct ProjectedPoint {
 struct LineSegment2D {
 	ProjectedPoint A, B;
 	int modelLid;
-	pscalar sin, cos;
+	pscalar sin, cos, d;
 
 	LineSegment2D (const ProjectedPoint &pA, const ProjectedPoint &pB, int &lid) :
 		A(pA), B(pB), modelLid(lid)
@@ -51,6 +51,7 @@ struct LineSegment2D {
 		auto r = length();
 		sin = (B.coord.x() - A.coord.x()) / r;
 		cos = (B.coord.y() - A.coord.y()) / r;
+		d = A.coord.x()*sin - A.coord.y()*cos;
 		memset (A.jacobian, 0, sizeof(A.jacobian));
 		memset (B.jacobian, 0, sizeof(B.jacobian));
 	}
@@ -68,7 +69,8 @@ struct LineSegment2D {
 
 	pscalar distance (const Point2 &p)
 	{
-		return p.x()*sin - p.y()*cos;
+		auto da = p.x()*sin - p.y()*cos;
+		return da - d;
 	}
 
 	Point2 center()
