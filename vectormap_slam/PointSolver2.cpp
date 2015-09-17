@@ -100,61 +100,6 @@ void PointSolver2::solve (cv::Mat &inputImage, Point3 &startPos, Quaternion &sta
 }
 
 
-//void computeProjectionJacobian (
-//	Point3 &t,				// Camera center coordinate
-//	Quaternion &q,			// Camera orientation
-//	Point3 &point,			// Original point position
-//	Point2 &pim,			// Point in image
-//	float fx,
-//	float fy,
-//	float cx,
-//	float cy,	// From Intrinsic Matrix
-//	pscalar jacobian[7][2]	// jacobian result
-//	)
-//{
-//	pscalar x = point.x(),
-//			y = point.y(),
-//			z = point.z();
-//	pscalar Z = (-2*q.y()*q.y()-2*q.x()*q.x()+1)*(z-t.z()) + (2*q.y()*q.z()+2*q.w()*q.x())*(y-t.y())+(2*q.x()*q.z()-2*q.w()*q.y())*(x-t.x());
-//
-//	pscalar
-//		Tx = 2 * (q.w()*q.y() - q.x()*q.z()),
-//		Ty = -2 * (q.y()*q.z() + q.w()*q.x()),
-//		Tz = 2*q.y()*q.y() + 2*q.x()*q.x() - 1,
-//		Qx = -4*q.x()*(z-t.z()) + 2*q.w()*(y-t.y()) + 2*q.z()*(x-t.x()),
-//		Qy = -4*q.y()*(z-t.z()) + 2*q.z()*(y-t.y()) - 2*q.w()*(x-t.x()),
-//		Qz = 2*q.y()*(y - t.y()) + 2*q.x()*(x - t.x()),
-//		Qw = 2*q.x()*(y - t.y()) - 2*q.y()*(x - t.x());
-//
-//	// dtxx
-//	jacobian[0][0] = ((fx*(2*q.z()*q.z() + 2*q.y()*q.y()-1) + cx*Tx) / Z) - Tx*pim.x()/Z;
-//	// dtxy
-//	jacobian[0][1] = ((cy*Tx + fy*(-2*q.w()*q.z()-2*q.x()*q.y())) / Z) - Tx*pim.y()/Z;
-//	// dtyx
-//	jacobian[1][0] = ((cx*Ty+fx*(2*q.w()*q.z()-2*q.x()*q.y())) / Z) - Ty*pim.x()/Z;
-//	// dtyy
-//	jacobian[1][1] = ((fy*(2*q.z()*q.z() + 2*q.x()*q.x() - 1) + cy*Ty) / Z) - Ty*pim.y()/Z;
-//	// dtzx
-//	jacobian[2][0] = ((fx*(-2*q.x()*q.z()-2*q.w()*q.y()) + cx*Tz) / Z) - ((Tz*pim.x())/Z);
-//	// dtzy
-//	jacobian[2][1] = ((fx*(-2*q.x()*q.z()-2*q.w()*q.y()) + cx*Tz) / Z) - ((Tz*pim.y())/Z);
-//	// dqxx
-//	jacobian[3][0] = ((fx*(2*q.z()*(z-t.z()) + 2*q.y()*(y-t.y())) + cx*Qx)/Z) - (Qx*pim.x()/Z);
-//	// dqxy
-//	jacobian[3][1] = ((cy*Qx + fy*(-2*q.w()*(z-t.z()) -4*q.x()*(y-t.y()) + 2*q.y()*(x-t.x())) )/Z) - (Qx*pim.y()/Z);
-//	// dqyx
-//	jacobian[4][0] = (cx*Qy + fx*(2*q.w()*(z-t.z()) +2*q.x()*(y-t.y()) -4*q.y()*(x-t.x())))/Z  -  Qy*pim.x()/Z;
-//	// dqyy
-//	jacobian[4][1] = (fy*(2*q.z()*(z-t.z()) + 2*q.x()*(x-t.x())) + cy*Qy)/Z  -  Qy*pim.y()/Z;
-//	// dqzx
-//	jacobian[5][0] = (fx*(2*q.x()*(z-t.z()) - 2*q.w()*(y-t.y()) - 4*q.z()*(x-t.x())) + cx*Qz)/Z - Qz*pim.x()/Z;
-//	// dqzy
-//	jacobian[5][1] = (fy*(2*q.y()*(z-t.z()) - 4*q.z()*(y-t.y()) + 2*q.w()*(x-t.x())) + cy*Qz)/Z - Qz*pim.y()/Z;
-//	// dqwx
-//	jacobian[6][0] = (fx*(2*q.y()*(z-t.z()) - 2*q.z()*(y-t.y())) + cx*Qw)/Z - Qw*pim.x()/Z;
-//	// dqwy
-//	jacobian[6][1] = (fy*(2*q.z()*(x-t.x()) - 2*q.x()*(z-t.z())) + cy*Qw)/Z - Qw*pim.y()/Z;
-//}
 void computeProjectionJacobian (
 	Point3 &t,				// Camera center coordinate
 	Quaternion &q,			// Camera orientation
@@ -354,6 +299,7 @@ void PointSolver2::projectModel (cv::Mat &output, vector<ModelLine> &model, Poin
 }
 
 
+// XXX: Jac(i, 6) or column #7 is all zero !
 void PointSolver2::prepareMatrices ()
 {
 	Jac = Eigen::MatrixXd::Zero (ipoints.size(), 7);
@@ -426,7 +372,8 @@ void PointSolver2::solveForCorrection ()
 	orientation0.z() -= Pcorrect[5];
 	orientation0.w() -= Pcorrect[6];
 //	orientation0.normalize();
-//	std::cout << jat << std::endl;
+//	std::cout << Jac << std::endl;
+//	exit (1);
 //	std::cout << Pcorrect << std::endl;
 }
 

@@ -117,11 +117,6 @@ public:
 	};
 
 
-	struct ProjectorNormalized : public Projector {
-
-	};
-
-
 	PointSolver2 (vector<ModelLine> &m, PointSolver2::Projector &proj);
 
 	void solve (cv::Mat &inputImage, Point3 &startPos, Quaternion &startOrientation);
