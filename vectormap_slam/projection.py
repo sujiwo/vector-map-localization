@@ -1,6 +1,7 @@
 from __future__ import division
 import numpy as np
 import math
+from math import sin, cos, tan
 import cv2
 
 # rectangle = np.array([
@@ -175,6 +176,43 @@ def lookAt2 (_eyePosition, _pointOfView, _up) :
     viewMat [0:3, 3] = -eyePosition
     return viewMat
 
+
+# Look stupid? Yeah, I love verbosity
+def lookAt3 (eyePosition, roll, pitch, yaw):
+    
+    # convert from degree to radian
+    roll = roll * math.pi / 180.0
+    pitch = pitch * math.pi / 180.0
+    yaw = yaw * math.pi / 180.0
+    
+    viewMat = np.eye (4,4)
+    
+    mroll = np.eye(3, 3)
+    mroll[0,0] = cos (roll)
+    mroll[0,1] = -sin (roll)
+    mroll[1,0] = sin (roll)
+    mroll[1,1] = cos (roll)
+    
+    mpitch = np.eye(3,3)
+    mpitch[1,1] = cos (pitch)
+    mpitch[1,2] = -sin (pitch)
+    mpitch[2,1] = sin (pitch)
+    mpitch[2,2] = cos (pitch)   
+
+    myaw = np.eye(3,3)
+    myaw[0,0] = cos (yaw)
+    myaw[0,2] = sin (yaw)
+    myaw[2,0] = -sin (yaw)
+    myaw[2,2] = cos (yaw)    
+    
+    # Test first !
+    rotmat = myaw.dot(mpitch.dot(mroll))
+    viewMat[0:3,3] = rotmat.dot (-np.array(eyePosition))
+    viewMat[0:3,0:3] = rotmat
+    
+    return viewMat
+
+
 def project1 (point3d, viewMat, projMat):
     point4d = np.zeros(4)
     point4d[0:3] = point3d
@@ -221,6 +259,23 @@ def drawLineList1 (objectLines, image, viewMat, projMat):
     for ip in range (len(objectLines)-1) :
         drawLine (objectLines[ip], objectLines[ip+1])
     drawLine (objectLines[len(objectLines)-1], objectLines[0])
+
+
+def drawLineList2 (objectLines, image, viewMat, projMat):
+    
+    def drawLine (p1, p2):
+        p1p = project2 (p1, viewMat, projMat, image.shape[1], image.shape[0])
+        p2p = project2 (p2, viewMat, projMat, image.shape[1], image.shape[0])
+        (u1, v1) = int(p1p[0]), int(p1p[1])
+        (u2, v2) = int(p2p[0]), int(p2p[1])
+#         cv2.circle (image, (u1, v1), 2, 255)
+#         cv2.circle (image, (u2, v2), 2, 255)
+        cv2.line (image, (u1,v1), (u2,v2), 255)
+    
+    for ip in range (len(objectLines)-1) :
+        drawLine (objectLines[ip], objectLines[ip+1])
+    drawLine (objectLines[len(objectLines)-1], objectLines[0])
+
     
     
 def drawPoints1 (object, image, viewMat, projMat):
@@ -255,14 +310,16 @@ def drawPoints2 (object, image, viewMat, projMat):
 
 
 if __name__ == '__main__' :
-    viewmat = lookAt2 ([-0.5, -0.5, 2], [0.5, 0.5, -2], [0, 1, 0])
-    position, orientation = createPoseFromViewMatrix(viewmat)
+#     viewmat = lookAt2 ([-0.5, -0.5, 2], [0.5, 0.5, -2], [0, 1, 0])
+#     position, orientation = createPoseFromViewMatrix(viewmat)
 #     viewmat = lookAt2 ([0.5, 0.5, 2], [0.5, 0.5, -2], [0, 1, 0])
+    viewmat = lookAt3 ([-0.5, -0.5, 2], 0, 10, -10)
 #     viewmat = lookAt1((-0.915031, -0.943627, 1.656656), (0.985495, -0.117826, 0.121295, -0.014295))
-    projmat = perspective6(45.0, 640, 480)
+    projmat = perspective6(75.0, 640, 480)
 #     projmat = perspective4 (45.0, 1.333)
     image = np.zeros ((480,640), dtype=np.uint8)
-    drawPoints2 (rectangle, image, viewmat, projmat)
-    cv2.imwrite ("/tmp/box2.png", image)
+#     drawPoints2 (rectangle, image, viewmat, projmat)
+    drawLineList2 (rectangle, image, viewmat, projmat)
+    cv2.imwrite ("/tmp/box.png", image)
     
     pass
