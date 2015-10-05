@@ -150,6 +150,8 @@ protected:
 	void prepareMatrices ();
 	void solveForCorrection ();
 
+	double calcCurrentError ();
+
 	// solution matrices
 	Eigen::MatrixXd Jac;
 	Eigen::VectorXd Pcorrect, pointErrs;

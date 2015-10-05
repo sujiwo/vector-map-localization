@@ -465,3 +465,14 @@ void PointSolver2::debugDraw (const char *imgname, Point3 *pos, Quaternion *orin
 	PointSolver2::projectModel (image, model, this->projectionMatrix, cViewMatrix);
 	cv::imwrite (imgname, image);
 }
+
+
+double PointSolver2::calcCurrentError ()
+{
+//	for (int lid=0; lid<model.size(); lid++) {
+	Matrix4 currentViewMatrix = createViewMatrix (position0, orientation0);
+
+	for (auto &line: model) {
+
+	}
+}
